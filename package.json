@@ -3,18 +3,32 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www"
+    "start": "cross-env DEBUG=d2-armory-api:app node ./bin/www",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "dependencies": {
+    "axios": "^0.19.2",
     "constantinople": "^4.0.1",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
+    "crypto-js": "^4.0.0",
     "csurf": "^1.11.0",
     "debug": "~2.6.9",
+    "dotenv": "^8.2.0",
     "express": "~4.17.1",
     "helmet": "^3.22.1",
+    "express-validator": "^6.5.0",
     "http-errors": "~1.6.3",
+    "jsonata": "^1.8.3",
+    "kind-of": "^6.0.3",
     "morgan": "~1.9.1",
-    "pug": "^2.0.4"
-  }
+    "pug": "^2.0.4",
+    "supports-color": "^7.1.0",
+    "snyk": "^1.359.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.2"
+  },
+  "snyk": true
 }
