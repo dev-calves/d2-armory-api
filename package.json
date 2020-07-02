@@ -10,7 +10,7 @@
   "dependencies": {
     "axios": "^0.19.2",
     "constantinople": "^4.0.1",
-    "cookie-parser": "~1.4.4",
+    "cookie-parser": "~1.4.5",
     "cors": "^2.8.5",
     "crypto-js": "^4.0.0",
     "csurf": "^1.11.0",
