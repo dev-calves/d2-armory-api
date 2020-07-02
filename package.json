@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "cross-env DEBUG=d2-armory-api:app node ./bin/www"
+    "start": "cross-env DEBUG=d2-armory-api:app node ./bin/www",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "dependencies": {
     "axios": "^0.19.2",
@@ -22,9 +24,11 @@
     "kind-of": "^6.0.3",
     "morgan": "~1.9.1",
     "pug": "^2.0.4",
-    "supports-color": "^7.1.0"
+    "supports-color": "^7.1.0",
+    "snyk": "^1.359.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.2"
-  }
+  },
+  "snyk": true
 }
