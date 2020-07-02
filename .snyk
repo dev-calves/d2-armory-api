@@ -6,3 +6,13 @@ patch:
   SNYK-JS-LODASH-567746:
     - express-validator > lodash:
         patched: '2020-07-02T05:37:01.880Z'
+    - express-validator > lodash:
+        patched: '2020-07-02T15:26:26.006Z'
+    - constantinople > @babel/types > lodash:
+        patched: '2020-07-02T15:26:26.006Z'
+    - pug > pug-code-gen > constantinople > babel-types > lodash:
+        patched: '2020-07-02T15:26:26.006Z'
+    - pug > pug-filters > constantinople > babel-types > lodash:
+        patched: '2020-07-02T15:26:26.006Z'
+    - pug > pug-code-gen > pug-attrs > constantinople > babel-types > lodash:
+        patched: '2020-07-02T15:26:26.006Z'
