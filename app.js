@@ -1,61 +1,72 @@
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
 // references to dependencies.
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var csrf = require('csurf');
-var logger = require('morgan');
-var helmet = require('helmet');
-var cors = require('cors');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const logger = require('morgan');
+const helmet = require('helmet');
+const cors = require('cors');
+const cookieParser = require('cookie-parser');
+
+// utilities
+const errorHandler = require('./utility/error-handler');
+const oauthHandler = require('./utility/oauthhandler');
+const setTokenHeaders = require('./utility/token-headers');
 
 // references to apis.
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var authController = require('./api/auth');
-var charactersController = require('./api/characters');
+const indexRouter = require('./routes/index');
+const currentUserMembershipController = require('./api/current-user-membership');
+const charactersController = require('./api/characters');
+const encryptController = require('./api/encrypt');
+const oauthController = require('./api/oauth');
+
+// create express app
+const app = express();
 
 // cors configuration.
-var corsOptions = {
-  origin: 'http://localhost:4200',
+const corsOptions = {
+  origin: process.env.CORS_ORIGIN || "",
+  credentials: true, // added to allows storing cookies to the client
   optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }
 
-// create express app
-var app = express();
-
-// view engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
-
 // mount middleware dependencies.
-app.use(logger('dev'));
+app.use(logger(process.env.MORGAN_SETTING));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser()); // needs to be mounted before csrf.
-app.use(csrf({cookie: true}));
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(cors(corsOptions));
+app.use(cookieParser());
+app.use(setTokenHeaders);
 
-// mount apis into middleware
+// set view location and renderer for the home page.
+app.set('views', path.join(__dirname, './views'));
+app.set('view engine', 'pug');
+
+// mount home route
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
-app.use('/api', authController, charactersController);
+
+// mount apis
+app.use('/api',
+  currentUserMembershipController,
+  charactersController,
+  encryptController,
+  oauthController
+);
 
 // catch 404 and forward to error handler
-app.use(function(req, res, next) {
+app.use((req, res, next) => {
   next(createError(404));
 });
 
-// error handler
-app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
+// handles requests with missing tokens.
+app.use(oauthHandler);
 
-  // render the error page
-  res.status(err.status || 500);
-  res.render('error');
-});
+// error handler needs to be placed as the last middleware.
+app.use(errorHandler);
 
 module.exports = app;

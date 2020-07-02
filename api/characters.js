@@ -1,34 +1,71 @@
-var express = require('express');
-var router = express.Router();
+const axios = require('axios');
+const jsonata = require('jsonata');
+const { query, validationResult } = require('express-validator');
+const ClassEnum = require('./models/class'),
+  GenderEnum = require('./models/gender'),
+  RaceEnum = require('./models/race');
+const express = require('express');
+
+const router = express.Router();
 
 /* GET characters */
-router.get('/characters', function (req, res, next) {
-  console.log('reached the characters service.');
-  res.status(200).json([
-    {
-      class: "Warlock",
-      race: "Awoken",
-      gender: "Male",
-      light: "963",
-      emblem: "https://www.bungie.net/common/destiny2_content/icons/e62cc4b66807b628be0af671539eaa9d.jpg",
-      background: "https://www.bungie.net/common/destiny2_content/icons/d7c108a27b93e8e97af8d962ff6d73a9.jpg"
-    },
-    {
-      class: "Hunter",
-      race: "Exo",
-      gender: "Male",
-      light: "948",
-      emblem: "https://www.bungie.net/common/destiny2_content/icons/5dc023c8be5d682eae90be7f5d420f69.jpg",
-      background: "https://www.bungie.net/common/destiny2_content/icons/e452c62485491a02fbc0e36f06d301d2.jpg"
-    },
-    {
-      class: "Titan",
-      race: "Human",
-      gender: "Male",
-      light: "904",
-      emblem: "https://www.bungie.net/common/destiny2_content/icons/cb30b5a9b34f7204b064570b56576562.jpg",
-      background: "https://www.bungie.net/common/destiny2_content/icons/ecafe3e611c54e78656b85b77c8ee2f7.jpg"
-    }]);
+router.get('/characters', [
+  // validations
+  query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
+  query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+], (req, res, next) => {
+
+  // validation error response
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).json({ errors: errors.array() });
+  }
+
+  // request options
+  const charactersOption = {
+    headers: {
+      "X-API-Key": process.env.API_KEY
+    }
+  };
+
+  (async () => {
+    // get request for list of user's characters
+    let charactersResponse;
+    try {
+      charactersResponse =
+        await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption);
+    } catch (error) {
+      next(error);
+      return; // prevent further execution of code.
+    }
+
+    // expression for transforming the response
+    const expression = jsonata(`Response.characters.data.*.{
+          "class": classType, 
+          "race": raceType,
+          "gender": genderType,
+          "light": light,
+          "emblem": ('${process.env.BUNGIE_DOMAIN}' & emblemPath),
+          "background": ('${process.env.BUNGIE_DOMAIN}' & emblemBackgroundPath)
+        }`);
+
+    // response transformed
+    let response = expression.evaluate(charactersResponse.data);
+
+    // convert enum integers into enum string
+    response.forEach((character) => {
+      character.class = ClassEnum[parseInt(character.class)];
+      character.race = RaceEnum[parseInt(character.race)];
+      character.gender = GenderEnum[parseInt(character.gender)];
+    });
+
+    // send response
+    res.status(200).json(response);
+    return; // prevent further execution of code.
+
+  })();
+
+
 });
 
 module.exports = router;

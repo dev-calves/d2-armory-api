@@ -5,7 +5,7 @@
  */
 
 var app = require('../app');
-var debug = require('debug')('d2-armory-api:server');
+var debug = require('debug')('d2-armory-api:app');
 var http = require('http');
 
 /**
