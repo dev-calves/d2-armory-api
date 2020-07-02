@@ -1,12 +1,12 @@
-const axios = require('axios');
-const jsonata = require('jsonata');
-const { query, validationResult } = require('express-validator');
-const ClassEnum = require('./models/class'),
-  GenderEnum = require('./models/gender'),
-  RaceEnum = require('./models/race');
-const express = require('express');
+const axios = require('axios')
+const jsonata = require('jsonata')
+const { query, validationResult } = require('express-validator')
+const ClassEnum = require('./models/class')
+const GenderEnum = require('./models/gender')
+const RaceEnum = require('./models/race')
+const express = require('express')
 
-const router = express.Router();
+const router = express.Router()
 
 /* GET characters */
 router.get('/characters', [
@@ -14,29 +14,28 @@ router.get('/characters', [
   query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
 ], (req, res, next) => {
-
   // validation error response
-  const errors = validationResult(req);
+  const errors = validationResult(req)
   if (!errors.isEmpty()) {
-    return res.status(422).json({ errors: errors.array() });
+    return res.status(422).json({ errors: errors.array() })
   }
 
   // request options
   const charactersOption = {
     headers: {
-      "X-API-Key": process.env.API_KEY
+      'X-API-Key': process.env.API_KEY
     }
   };
 
   (async () => {
     // get request for list of user's characters
-    let charactersResponse;
+    let charactersResponse
     try {
       charactersResponse =
-        await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption);
+        await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)
     } catch (error) {
-      next(error);
-      return; // prevent further execution of code.
+      next(error)
+      return // prevent further execution of code.
     }
 
     // expression for transforming the response
@@ -47,25 +46,22 @@ router.get('/characters', [
           "light": light,
           "emblem": ('${process.env.BUNGIE_DOMAIN}' & emblemPath),
           "background": ('${process.env.BUNGIE_DOMAIN}' & emblemBackgroundPath)
-        }`);
+        }`)
 
     // response transformed
-    let response = expression.evaluate(charactersResponse.data);
+    const response = expression.evaluate(charactersResponse.data)
 
     // convert enum integers into enum string
     response.forEach((character) => {
-      character.class = ClassEnum[parseInt(character.class)];
-      character.race = RaceEnum[parseInt(character.race)];
-      character.gender = GenderEnum[parseInt(character.gender)];
-    });
+      character.class = ClassEnum[parseInt(character.class)]
+      character.race = RaceEnum[parseInt(character.race)]
+      character.gender = GenderEnum[parseInt(character.gender)]
+    })
 
     // send response
-    res.status(200).json(response);
-    return; // prevent further execution of code.
+    return res.status(200).json(response)
+    // prevent further execution of code.
+  })()
+})
 
-  })();
-
-
-});
-
-module.exports = router;
+module.exports = router
