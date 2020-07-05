@@ -1,0 +1,32 @@
+{
+    "Response": {
+        "characters": {
+            "data": {
+                "2305843009269802116": {
+                    "light": 100,
+                    "raceType": 1,
+                    "classType": 2,
+                    "genderType": 0,
+                    "emblemPath": "/test/emblem.jpg",
+                    "emblemBackgroundPath": "/test/emblemBackground.jpg"
+                },
+                "2305843009321046784": {
+                    "light": 150,
+                    "raceType": 2,
+                    "classType": 1,
+                    "genderType": 1,
+                    "emblemPath": "/test/emblem.jpg",
+                    "emblemBackgroundPath": "/test/emblemBackground.jpg"
+                },
+                "2305843009571625151": {
+                    "light": 59,
+                    "raceType": 0,
+                    "classType": 0,
+                    "genderType": 0,
+                    "emblemPath": "/test/emblem.jpg",
+                    "emblemBackgroundPath": "/test/emblemBackground.jpg"
+                }
+            }
+        }
+    }
+}

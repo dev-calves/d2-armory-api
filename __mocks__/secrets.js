@@ -1,0 +1,3 @@
+module.exports = {
+  encrypt: 'testSecret'
+}

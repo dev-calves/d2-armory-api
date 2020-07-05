@@ -12,16 +12,16 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 
 // utilities
-const errorHandler = require('./utility/error-handler')
-const oauthHandler = require('./utility/oauthhandler')
-const setTokenHeaders = require('./utility/token-headers')
+const errorHandler = require('./utility/error-handler/error-handler')
+const oauthHandler = require('./utility/oauth-handler/oauth-handler')
+const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
 const indexRouter = require('./routes/index')
-const currentUserMembershipController = require('./api/current-user-membership')
-const charactersController = require('./api/characters')
-const encryptController = require('./api/encrypt')
-const oauthController = require('./api/oauth')
+const currentUserMembershipController = require('./api/current-user-membership/current-user-membership')
+const charactersController = require('./api/characters/characters')
+const encryptController = require('./api/encrypt/encrypt')
+const oauthController = require('./api/oauth/oauth')
 
 // create express app
 const app = express()

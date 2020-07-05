@@ -1,0 +1,14 @@
+{
+    "errors": [
+        {
+            "location": "body",
+            "msg": "required parameter",
+            "param": "hex"
+        },
+        {
+            "location": "body",
+            "msg": "hex property must be a hexidecimal value",
+            "param": "hex"
+        }
+    ]
+}
