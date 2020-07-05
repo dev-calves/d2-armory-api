@@ -16,3 +16,5 @@ patch:
         patched: '2020-07-02T15:26:26.006Z'
     - pug > pug-code-gen > pug-attrs > constantinople > babel-types > lodash:
         patched: '2020-07-02T15:26:26.006Z'
+    - eslint-plugin-jest > @typescript-eslint/experimental-utils > @typescript-eslint/typescript-estree > lodash:
+        patched: '2020-07-05T00:30:50.762Z'
