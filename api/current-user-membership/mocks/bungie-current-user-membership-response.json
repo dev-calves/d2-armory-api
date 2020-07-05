@@ -1,0 +1,16 @@
+{
+    "Response": {
+        "destinyMemberships": [
+            {
+                "membershipType": 2,
+                "membershipId": "7578",
+                "displayName": "LION"
+            },
+            {
+                "membershipType": 3,
+                "membershipId": "2732",
+                "displayName": "cedric"
+            }
+        ]
+    }
+}

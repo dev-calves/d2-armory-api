@@ -1,0 +1,14 @@
+{
+    "errors": [
+        {
+            "location": "query",
+            "msg": "required parameter",
+            "param": "membershipId"
+        },
+        {
+            "location": "query",
+            "msg": "must be an integer",
+            "param": "membershipId"
+        }
+    ]
+}

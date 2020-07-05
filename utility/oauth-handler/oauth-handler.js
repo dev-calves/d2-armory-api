@@ -1,6 +1,6 @@
 
 module.exports = async function oauthHandler (error, req, res, next) {
-  const OAuthUtility = require('./oauth')
+  const OAuthUtility = require('../oauth/oauth')
   const axios = require('axios')
   const createError = require('http-errors')
 

@@ -1,0 +1,14 @@
+{
+    "errors": [
+        {
+            "location": "body",
+            "msg": "required parameter",
+            "param": "state"
+        },
+        {
+            "location": "body",
+            "msg": "state only accepted with 'inventory' or 'vault'",
+            "param": "state"
+        }
+    ]
+}

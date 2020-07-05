@@ -36,7 +36,7 @@ module.exports = {
     // set token cookies
     this.setTokenCookies(req, res)
   },
-  authorization (req) {
+  authorization (req, next) {
     let authKey = ''
     if (req.headers['x-access-token']) {
       authKey = req.headers['x-access-token']

@@ -5,12 +5,14 @@
         "es2020": true
     },
     "extends": [
-        "standard"
+        "standard",
+        "plugin:jest/recommended"
     ],
     "parserOptions": {
         "ecmaVersion": 11
     },
     "rules": {
         "no-useless-return":"off"
-    }
+    },
+    "plugins": ["jest"]
 }

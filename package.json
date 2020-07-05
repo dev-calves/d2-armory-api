@@ -4,12 +4,14 @@
   "private": true,
   "scripts": {
     "start": "cross-env DEBUG=d2-armory-api:app node ./bin/www",
+    "test": "jest",
     "lint": "./node_modules/.bin/eslint ./",
     "snyk-protect": "snyk protect",
     "prepare": "npm run snyk-protect"
   },
   "dependencies": {
     "axios": "^0.19.2",
+    "axios-mock-adapter": "^1.18.1",
     "constantinople": "^4.0.1",
     "cookie-parser": "~1.4.5",
     "cors": "^2.8.5",
@@ -17,16 +19,19 @@
     "csurf": "^1.11.0",
     "debug": "~2.6.9",
     "dotenv": "^8.2.0",
+    "eslint-plugin-jest": "^23.17.1",
     "express": "~4.17.1",
-    "helmet": "^3.22.1",
     "express-validator": "^6.5.0",
+    "helmet": "^3.22.1",
     "http-errors": "~1.6.3",
-    "morgan": "~1.10.0",
-    "pug": "^2.0.4",
     "jsonata": "^1.8.3",
     "kind-of": "^6.0.3",
-    "supports-color": "^7.1.0",
-    "snyk": "^1.359.1"
+    "morgan": "~1.10.0",
+    "nock": "^13.0.2",
+    "pug": "^2.0.4",
+    "snyk": "^1.359.1",
+    "supertest": "^4.0.2",
+    "supports-color": "^7.1.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.2",
@@ -35,7 +40,9 @@
     "eslint-plugin-import": "^2.22.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1"
+    "eslint-plugin-standard": "^4.0.1",
+    "jest": "^26.1.0",
+    "node-mocks-http": "^1.8.1"
   },
   "snyk": true
 }

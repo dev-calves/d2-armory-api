@@ -1,0 +1,26 @@
+[
+    {
+        "class": "Warlock", 
+        "race": "Awoken", 
+        "gender": "Male", 
+        "background": "http://test.com/test/emblemBackground.jpg",
+        "emblem": "http://test.com/test/emblem.jpg",
+        "light": 100
+    },
+    {
+        "background": "http://test.com/test/emblemBackground.jpg",
+        "class": "Hunter",
+        "emblem": "http://test.com/test/emblem.jpg",
+        "gender": "Female",
+        "light": 150,
+        "race": "Exo"
+    },
+    {
+        "background": "http://test.com/test/emblemBackground.jpg",
+        "class": "Titan",
+        "emblem": "http://test.com/test/emblem.jpg",
+        "gender": "Male",
+        "light": 59,
+        "race": "Human"
+    }
+]
