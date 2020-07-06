@@ -13,8 +13,6 @@ const cookieParser = require('cookie-parser')
 
 // utilities
 const errorHandler = require('./utility/error-handler/error-handler')
-const oauthHandler = require('./utility/oauth-handler/oauth-handler')
-const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
 const indexRouter = require('./routes/index')
@@ -41,7 +39,6 @@ app.use(cors(corsOptions))
 app.use(helmet())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(cookieParser())
-app.use(setTokenHeaders)
 
 // set view location and renderer for the home page.
 app.set('views', path.join(__dirname, './views'))
@@ -62,9 +59,6 @@ app.use('/api',
 app.use((req, res, next) => {
   next(createError(404))
 })
-
-// handles requests with missing tokens.
-app.use(oauthHandler)
 
 // error handler needs to be placed as the last middleware.
 app.use(errorHandler)

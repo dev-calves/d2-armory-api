@@ -10,10 +10,6 @@ describe('Oauth Utility', () => {
   const request = httpMocks.createRequest({
     method: 'GET',
     url: '/test',
-    headers: {
-      'x-access-token': 'accesstoken',
-      'x-refresh-token': 'refreshtoken'
-    },
     cookies: {
       'access-token': 'accesstoken',
       'refresh-token': 'refreshtoken'
@@ -44,23 +40,70 @@ describe('Oauth Utility', () => {
   test('should request new tokens', async () => {
     nock(process.env.BUNGIE_DOMAIN)
       .post('/platform/app/oauth/token/')
-      .reply(200, { 'access-token': 'access', 'refresh-token': 'refresh' })
+      .reply(200, { access_token: 'access', refresh_token: 'refresh' })
 
-    spyOn(oauth, 'setTokenHeaders').and.callFake((access, refresh, req) => {
-      return
-    })
     spyOn(oauth, 'setTokenCookies').and.returnValue('')
 
-    await oauth.oauthRequest({ message: 'hello' }, request, response)
+    const token = await oauth.oauthRequest({ message: 'hello' }, response)
 
-    expect(oauth.setTokenHeaders).toHaveBeenCalled()
     expect(oauth.setTokenCookies).toHaveBeenCalled()
+    expect(token).toContain('access')
   })
 
-  test('should set authorization in the header', () => {
-    const authToken = oauth.authorization(request, function next () {})
+  describe('authorization function', () => {
+    test('should set authorization in the header if access token is available', async () => {
+      const request = httpMocks.createRequest({
+        method: 'GET',
+        url: '/test',
+        cookies: {
+          'access-token': 'accesstoken',
+          'refresh-token': 'refreshtoken'
+        }
+      })
+      const response = httpMocks.createResponse({
+        eventEmitter: require('events').EventEmitter
+      })
 
-    expect(authToken).toEqual('Bearer accesstoken')
+      const authToken = await oauth.authorization(request, response)
+
+      expect(authToken).toEqual('Bearer accesstoken')
+    })
+
+    test('should request a new access token when access token is n/a but the refresh token exists', async () => {
+      const request = httpMocks.createRequest({
+        method: 'GET',
+        url: '/test',
+        cookies: {
+          'refresh-token': 'refreshtoken'
+        }
+      })
+      const response = httpMocks.createResponse({
+        eventEmitter: require('events').EventEmitter
+      })
+
+      spyOn(oauth, 'oauthRequest').and.callFake((body, res) => {
+        return Promise.resolve('access1234')
+      })
+      spyOn(oauth, 'refreshBody').and.callFake((body) => { })
+
+      const authToken = await oauth.authorization(request, response)
+
+      expect(oauth.oauthRequest).toHaveBeenCalled()
+      expect(authToken).toEqual('Bearer access1234')
+    })
+
+    test('should respond with a 401 if both tokens are n/a', async () => {
+      const request = httpMocks.createRequest({
+        method: 'GET',
+        url: '/test',
+        cookies: {}
+      })
+      const response = httpMocks.createResponse({
+        eventEmitter: require('events').EventEmitter
+      })
+
+      await expect(oauth.authorization(request, response)).rejects.toThrow()
+    })
   })
 
   test('should return the body needed for requesting tokens', () => {
@@ -85,22 +128,12 @@ describe('Oauth Utility', () => {
     })
   })
 
-  test('should set cookies with values taken from the x-headers', () => {
-    spyOn(response, 'cookie').and.callFake((name, value, options) => {})
+  test('should set cookies with values taken from the request', () => {
+    spyOn(response, 'cookie').and.callFake((name, value, options) => { })
 
     oauth.setTokenCookies(request, response)
 
     expect(response.cookie).toHaveBeenCalled()
-  })
-
-  test('should set x-headers with values taken from cookies', () => {
-    request.headers['x-access-token'] = ''
-    request.headers['x-refresh-token'] = ''
-
-    oauth.setTokenHeaders('access1234', 'refresh1234', request)
-
-    expect(request.headers['x-access-token']).toEqual('access1234')
-    expect(request.headers['x-refresh-token']).toEqual('refresh1234')
   })
 
   test('should delete tokens', () => {
@@ -124,7 +157,5 @@ describe('Oauth Utility', () => {
     oauth.deleteTokens(request, response)
 
     expect(response.clearCookie).toHaveBeenCalled()
-    expect(request.headers['x-access-token']).not.toBeDefined()
-    expect(request.headers['x-refresh-token']).not.toBeDefined()
   })
 })
