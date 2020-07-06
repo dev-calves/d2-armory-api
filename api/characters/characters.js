@@ -77,6 +77,7 @@ async function request (charactersOption, req, next) {
 function transform (charactersResponse) {
   // expression for transforming the response
   const expression = jsonata(`Response.characters.data.*.{
+      "id": characterId,
       "class": classType, 
       "race": raceType,
       "gender": genderType,
