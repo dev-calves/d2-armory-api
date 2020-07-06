@@ -1,9 +1,9 @@
 module.exports = {
-  authorization (req) {
-    return ''
+  async authorization (req, res) {
+    return 'token1234'
   },
-  oauthRequest (tokens, req, res) {
-    return Promise.resolve({ response: 'requestResponse' })
+  async oauthRequest (tokens, res) {
+    return 'token1234'
   },
   tokensBody (code) {
     return { body: 'tokens' }
@@ -11,7 +11,7 @@ module.exports = {
   deleteTokens (req, res) {
 
   },
-  refreshBody (header, req, res) {
+  refreshBody (refresh) {
     return {
       tokens: 'tokensresponse'
     }

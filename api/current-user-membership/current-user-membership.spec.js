@@ -37,6 +37,8 @@ describe('Current User Membership API', () => {
     })
 
     test('should respond with the current user\'s primary account info', async (done) => {
+      jest.setTimeout(50000)
+
       response.on('end', function () {
         const routeResponse = response._getJSONData()
         expect(routeResponse).toBeTruthy()

@@ -7,26 +7,31 @@ const router = express.Router()
 
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
-  // request options
-  const requestOptions = {
-    headers: {
-      'X-API-Key': process.env.API_KEY,
-      Authorization: OAuthUtility.authorization(req)
-    }
-  }
-
-  // retrieve user data
-  return currentUserMembershipService(requestOptions, next).then(response => {
-    return res.status(200).json(response)
+  OAuthUtility.authorization(req, res).then(token => {
+    // retrieve user data
+    return currentUserMembershipService(token, next).then(response => {
+      return res.status(200).json(response)
+    })
+  }).catch(error => {
+    next(error)
+    return
   })
 })
 
 /**
  *
- * @param {*} requestOptions
+ * @param {*} token
  * @param {*} next
  */
-async function currentUserMembershipService (requestOptions, next) {
+async function currentUserMembershipService (token, next) {
+  // request options
+  const requestOptions = {
+    headers: {
+      'X-API-Key': process.env.API_KEY,
+      Authorization: token
+    }
+  }
+
   const currentUserMembershipResponse = await request(requestOptions, next)
   const response = transform(currentUserMembershipResponse)
 
