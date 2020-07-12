@@ -1,4 +1,4 @@
-const Secrets = require('../../secrets')
+// const Secrets = require('../../secrets')
 const CryptoJS = require('crypto-js')
 const express = require('express')
 const router = express.Router()
@@ -16,7 +16,7 @@ router.post('/encrypt', [
   }
 
   // Encrypt
-  const b64 = CryptoJS.AES.encrypt(req.body.state, Secrets.encrypt).toString()
+  const b64 = CryptoJS.AES.encrypt(req.body.state, process.env.ENCRYPT_SECRET).toString()
   const e64 = CryptoJS.enc.Base64.parse(b64).toString()
 
   // url safe.
@@ -44,7 +44,7 @@ router.post('/decrypt', [
   const bytes = reb64.toString(CryptoJS.enc.Base64)
 
   // decrypt.
-  const decrypt = CryptoJS.AES.decrypt(bytes, Secrets.encrypt)
+  const decrypt = CryptoJS.AES.decrypt(bytes, process.env.ENCRYPT_SECRET)
 
   // plain text.
   const plain = decrypt.toString(CryptoJS.enc.Utf8)
