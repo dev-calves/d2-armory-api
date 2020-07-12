@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "cross-env DEBUG=d2-armory-api:app node ./bin/www",
+    "start": "./node_modules/.bin/cross-env DEBUG=d2-armory-api:app node ./bin/www",
     "test": "jest",
     "lint": "./node_modules/.bin/eslint ./",
     "snyk-protect": "snyk protect",
