@@ -3,8 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "./node_modules/.bin/cross-env DEBUG=d2-armory-api:app node ./bin/www",
+    "start": "node ./bin/www",
     "test": "jest",
+    "windowsDebug": "@powershell -Command $env:DEBUG='d2-armory-api:app';node ./bin/www",
     "lint": "./node_modules/.bin/eslint ./",
     "snyk-protect": "snyk protect",
     "prepare": "npm run snyk-protect"
