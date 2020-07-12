@@ -26,7 +26,7 @@ const app = express()
 
 // cors configuration.
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || '',
+  origin: process.env.CORS_ORIGIN,
   credentials: true, // added to allows storing cookies to the client
   optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }
