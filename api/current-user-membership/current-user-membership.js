@@ -8,6 +8,7 @@ const router = express.Router()
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
   OAuthUtility.authorization(req, res).then(token => {
+    console.info(token)
     // retrieve user data
     return currentUserMembershipService(token, next).then(response => {
       return res.status(200).json(response)
