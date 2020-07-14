@@ -2,7 +2,7 @@ module.exports = function errorHandler (error, req, res, next) {
   // set locals, only providing error in development
   res.locals.message = error.message
   res.locals.error = req.app.get('env') === 'development' ? error : {}
-  console.info(error)
+
   return res.status(error.status ||
         error.statusCode ||
         ((error.response && error.response.status) ? error.response.status : false) ||
