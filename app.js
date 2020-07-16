@@ -3,7 +3,6 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // references to dependencies.
-const createError = require('http-errors')
 const express = require('express')
 const path = require('path')
 const logger = require('morgan')
@@ -40,13 +39,6 @@ app.use(helmet())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(cookieParser())
 
-// set view location and renderer for the home page.
-app.set('views', path.join(__dirname, './views'))
-app.set('view engine', 'pug')
-
-// mount home route
-app.use('/', indexRouter)
-
 // mount apis
 app.use('/api',
   currentUserMembershipController,
@@ -54,11 +46,7 @@ app.use('/api',
   encryptController,
   oauthController
 )
-
-// catch 404 and forward to error handler
-app.use((req, res, next) => {
-  next(createError(404))
-})
+app.use('/*', indexRouter)
 
 // error handler needs to be placed as the last middleware.
 app.use(errorHandler)
