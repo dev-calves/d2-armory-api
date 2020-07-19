@@ -1,28 +1,23 @@
 const qs = require('qs')
 const axios = require('axios')
 const createError = require('http-errors')
+const jwt = require('jsonwebtoken')
 
 const accessCookieOptions = {
   domain: process.env.FRONT_END_DOMAIN,
-  expires: new Date(Date.now() + 60 * 40 * 1000), // 40 minutes in milliseconds
+  httpOnly: true,
   secure: (process.env.COOKIE_SECURE_FLAG === 'true')
 }
 
 const refreshCookieOptions = {
   domain: process.env.FRONT_END_DOMAIN,
-  expires: new Date(Date.now() + 60 * 60 * 24 * 30 * 1000), // 30 days in milliseconds
   httpOnly: true,
   secure: (process.env.COOKIE_SECURE_FLAG === 'true')
 }
 
 module.exports = {
-  /**
-   *
-   * @param {*} data
-   * @param {*} req
-   * @param {*} res
-   */
-  async oauthRequest (data, res) {
+
+  async oauthRequest (data, req, res) {
     const url = `${process.env.BUNGIE_DOMAIN}/platform/app/oauth/token/`
     const config = {
       headers: {
@@ -35,36 +30,21 @@ module.exports = {
     const oauthResponse = await axios.post(url, qs.stringify(data), config)
 
     // set token cookies
-    this.setTokenCookies(oauthResponse.data, res)
-
-    // return token
-    return oauthResponse.data.access_token
+    this.setTokenCookies(oauthResponse.data, req, res)
   },
-  /**
-   *
-   * @param {*} req
-   * @param {*} res
-   */
-  async authorization (req, res) {
+
+  authorization (req) {
     let authKey = ''
 
-    if (!req.cookies['access-token']) {
-      if (!req.cookies['refresh-token']) {
-        throw (createError(401, 'both tokens are not available'))
-      } else if (req.cookies['refresh-token']) {
-        // request new tokens and set them as cookies for future requests.
-        authKey = await this.oauthRequest(this.refreshBody(req.cookies['refresh-token']), res)
-      }
+    if (req.headers['x-access-token']) {
+      authKey = req.headers['x-access-token']
     } else {
-      authKey = req.cookies['access-token']
+      throw (createError(401, 'Access token not available.'))
     }
 
     return `Bearer ${authKey}`
   },
-  /**
-   *
-   * @param {*} code
-   */
+
   tokensBody (code) { // used to acquire access and refresh tokens
     const body = {
       grant_type: process.env.OAUTH_ACCESS_GRANT_TYPE,
@@ -75,10 +55,7 @@ module.exports = {
 
     return body
   },
-  /**
-   *
-   * @param {*} refresh
-   */
+
   refreshBody (refresh) { // used to acquire access token
     const body = {
       grant_type: process.env.OAUTH_REFRESH_GRANT_TYPE,
@@ -89,27 +66,37 @@ module.exports = {
 
     return body
   },
-  /**
-   *
-   * @param {*} oauthResponse
-   * @param {*} res
-   */
-  setTokenCookies (oauthResponse, res) {
-    res.cookie('access-token', oauthResponse.access_token, accessCookieOptions)
-    res.cookie('refresh-token', oauthResponse.refresh_token, refreshCookieOptions)
+
+  setTokenCookies (oauthResponse, req, res) {
+    // set x-headers
+    req.headers['x-access-token'] = oauthResponse.access_token
+    req.headers['x-refresh-token'] = oauthResponse.refresh_token
+
+    // set cookies
+    res.cookie('access-token', this.signCookies(oauthResponse.access_token), accessCookieOptions)
+    res.cookie('refresh-token', this.signCookies(oauthResponse.refresh_token), refreshCookieOptions)
+
     // TODO: may need to store member id from oauthResponse.
   },
-  /**
-   *
-   * @param {*} req
-   * @param {*} res
-   */
+
+  signCookies (token) {
+    const signed = jwt.sign({
+      token: token
+    }, process.env.TOKEN_SECRET)
+
+    return signed
+  },
+
   deleteTokens (req, res) {
     // set expiration date to the past.
     const accessExpiredCookieOptions = Object.assign({}, accessCookieOptions)
     accessExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
     const refreshExpiredCookieOptions = Object.assign({}, refreshCookieOptions)
     refreshExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
+
+    // delete headers
+    if (req.headers['x-access-token']) delete req.headers['x-access-token']
+    if (req.headers['x-refresh-token']) delete req.headers['x-refresh-token']
 
     // delete cookies, the values must be cleared and must have matching options as the cookies set except for expires and maxAge.
     if (req.cookies['access-token'] || req.cookies['access-token'] === '') res.clearCookie('access-token', accessExpiredCookieOptions)

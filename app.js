@@ -3,6 +3,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // references to dependencies.
+if (process.env.NODE_ENV !== 'production') {
+  var cors = require('cors')
+}
 const express = require('express')
 const path = require('path')
 const logger = require('morgan')
@@ -11,6 +14,8 @@ const cookieParser = require('cookie-parser')
 
 // utilities
 const errorHandler = require('./utility/error-handler/error-handler')
+const oauthHandler = require('./utility/oauth-handler/oauth-handler')
+const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
 const indexRouter = require('./routes/index')
@@ -29,6 +34,13 @@ app.use(express.urlencoded({ extended: false }))
 app.use(helmet())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(cookieParser())
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({
+    origin: 'http://127.0.0.1:4200',
+    credentials: true
+  }))
+}
+app.use(setTokenHeaders)
 
 // mount apis
 app.use('/api',
@@ -38,6 +50,9 @@ app.use('/api',
   oauthController
 )
 app.use('/*', indexRouter)
+
+// handles requests with missing tokens.
+app.use(oauthHandler)
 
 // error handler needs to be placed as the last middleware.
 app.use(errorHandler)
