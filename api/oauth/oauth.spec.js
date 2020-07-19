@@ -40,8 +40,8 @@ describe('Oauth API', () => {
       const request = httpMocks.createRequest({
         method: 'GET',
         url: '/oauth/refresh',
-        cookies: {
-          'refresh-token': 'refresh1234'
+        headers: {
+          'x-refresh-token': 'refresh1234'
         }
       })
       const response = httpMocks.createResponse({
