@@ -3,6 +3,7 @@ module.exports = function errorHandler (error, req, res, next) {
   res.locals.message = error.message
   res.locals.error = req.app.get('env') === 'development' ? error : {}
 
+  console.error(error)
   return res.status(error.status ||
         error.statusCode ||
         ((error.response && error.response.status) ? error.response.status : false) ||
