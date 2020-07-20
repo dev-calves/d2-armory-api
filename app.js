@@ -3,6 +3,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // references to dependencies.
+if (process.env.NODE_ENV !== 'production') {
+  var cors = require('cors')
+}
 const express = require('express')
 const path = require('path')
 const logger = require('morgan')
@@ -11,9 +14,12 @@ const cookieParser = require('cookie-parser')
 
 // utilities
 const errorHandler = require('./utility/error-handler/error-handler')
+const oauthHandler = require('./utility/oauth-handler/oauth-handler')
+const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
 const indexRouter = require('./routes/index')
+const workerRouter = require('./routes/ngsw-worker')
 const currentUserMembershipController = require('./api/current-user-membership/current-user-membership')
 const charactersController = require('./api/characters/characters')
 const encryptController = require('./api/encrypt/encrypt')
@@ -29,6 +35,13 @@ app.use(express.urlencoded({ extended: false }))
 app.use(helmet())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(cookieParser())
+if (process.env.NODE_ENV !== 'production') {
+  app.use(cors({
+    origin: /http:(\/\/127\.0\.0\.1)|(localhost):(42)|(30)00/,
+    credentials: true
+  }))
+}
+app.use(setTokenHeaders)
 
 // mount apis
 app.use('/api',
@@ -37,7 +50,11 @@ app.use('/api',
   encryptController,
   oauthController
 )
+app.get('/ngsw-worker.js', workerRouter)
 app.use('/*', indexRouter)
+
+// handles requests with missing tokens.
+app.use(oauthHandler)
 
 // error handler needs to be placed as the last middleware.
 app.use(errorHandler)

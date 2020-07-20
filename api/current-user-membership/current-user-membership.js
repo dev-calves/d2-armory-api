@@ -7,32 +7,30 @@ const router = express.Router()
 
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
-  OAuthUtility.authorization(req, res).then(token => {
-    // retrieve user data
-    return currentUserMembershipService(token, next).then(response => {
-      return res.status(200).json(response)
-    })
+  // retrieve current user's data
+  return currentUserMembershipService(req, res, next).then(response => {
+    return res.status(200).json(response)
   }).catch(error => {
     next(error)
     return
   })
 })
 
-/**
- *
- * @param {*} token
- * @param {*} next
- */
-async function currentUserMembershipService (token, next) {
+async function currentUserMembershipService (req, res, next) {
   // request options
   const requestOptions = {
     headers: {
       'X-API-Key': process.env.API_KEY,
-      Authorization: token
+      Authorization: OAuthUtility.authorization(req, res)
     }
   }
 
-  const currentUserMembershipResponse = await request(requestOptions, next)
+  let currentUserMembershipResponse
+  try {
+    currentUserMembershipResponse = await request(requestOptions, next)
+  } catch (error) {
+    throw (error.response)
+  }
   const response = transform(currentUserMembershipResponse)
 
   return response
@@ -45,14 +43,8 @@ async function currentUserMembershipService (token, next) {
  */
 async function request (requestOptions, next) {
   // get current user membership request
-  let currentUserResponse
-  try {
-    currentUserResponse =
+  const currentUserResponse =
       await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`, requestOptions)
-  } catch (error) {
-    next(error)
-    return // prevent further execution of code.
-  }
 
   return currentUserResponse
 }

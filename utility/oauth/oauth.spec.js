@@ -2,6 +2,9 @@
 /* eslint-disable jest/no-test-callback */
 const nock = require('nock')
 const httpMocks = require('node-mocks-http')
+jest.mock('jsonwebtoken')
+jest.mock('http-errors')
+
 let oauth
 
 describe('Oauth Utility', () => {
@@ -37,17 +40,16 @@ describe('Oauth Utility', () => {
     process.env = OLD_ENV // restore old env
   })
 
-  test('should request new tokens', async () => {
+  test('should request new tokens from bungie', async () => {
     nock(process.env.BUNGIE_DOMAIN)
       .post('/platform/app/oauth/token/')
       .reply(200, { access_token: 'access', refresh_token: 'refresh' })
 
-    spyOn(oauth, 'setTokenCookies').and.returnValue('')
+    spyOn(oauth, 'setTokenCookies').and.callFake((response, req, res) => {})
 
-    const token = await oauth.oauthRequest({ message: 'hello' }, response)
+    await oauth.oauthRequest({ message: 'hello' }, request, response)
 
     expect(oauth.setTokenCookies).toHaveBeenCalled()
-    expect(token).toContain('access')
   })
 
   describe('authorization function', () => {
@@ -55,9 +57,9 @@ describe('Oauth Utility', () => {
       const request = httpMocks.createRequest({
         method: 'GET',
         url: '/test',
-        cookies: {
-          'access-token': 'accesstoken',
-          'refresh-token': 'refreshtoken'
+        headers: {
+          'x-access-token': 'accesstoken',
+          'x-refresh-token': 'refreshtoken'
         }
       })
       const response = httpMocks.createResponse({
@@ -69,40 +71,19 @@ describe('Oauth Utility', () => {
       expect(authToken).toEqual('Bearer accesstoken')
     })
 
-    test('should request a new access token when access token is n/a but the refresh token exists', async () => {
+    test('should throw with a 401 if access tokens are n/a', () => {
       const request = httpMocks.createRequest({
         method: 'GET',
         url: '/test',
-        cookies: {
-          'refresh-token': 'refreshtoken'
-        }
+        headers: {}
       })
       const response = httpMocks.createResponse({
         eventEmitter: require('events').EventEmitter
       })
 
-      spyOn(oauth, 'oauthRequest').and.callFake((body, res) => {
-        return Promise.resolve('access1234')
-      })
-      spyOn(oauth, 'refreshBody').and.callFake((body) => { })
-
-      const authToken = await oauth.authorization(request, response)
-
-      expect(oauth.oauthRequest).toHaveBeenCalled()
-      expect(authToken).toEqual('Bearer access1234')
-    })
-
-    test('should respond with a 401 if both tokens are n/a', async () => {
-      const request = httpMocks.createRequest({
-        method: 'GET',
-        url: '/test',
-        cookies: {}
-      })
-      const response = httpMocks.createResponse({
-        eventEmitter: require('events').EventEmitter
-      })
-
-      await expect(oauth.authorization(request, response)).rejects.toThrow()
+      expect(() => {
+        oauth.authorization(request, response)
+      }).toThrow()
     })
   })
 
@@ -131,7 +112,10 @@ describe('Oauth Utility', () => {
   test('should set cookies with values taken from the request', () => {
     spyOn(response, 'cookie').and.callFake((name, value, options) => { })
 
-    oauth.setTokenCookies(request, response)
+    oauth.setTokenCookies({
+      access_token: 'testAcc',
+      refresh_token: 'testRef'
+    }, request, response)
 
     expect(response.cookie).toHaveBeenCalled()
   })
