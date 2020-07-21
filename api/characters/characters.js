@@ -30,6 +30,9 @@ router.get('/characters', [
     console.info('/characters - response: ', response)
 
     return res.status(200).json(response)
+  }).catch(error => {
+    next(error)
+    return
   })
 })
 
@@ -49,7 +52,12 @@ async function charactersService (req, next) {
   }
 
   // request characters
-  const charactersResponse = await request(charactersOption, req, next)
+  let charactersResponse
+  try {
+    charactersResponse = await request(charactersOption, req, next)
+  } catch (error) {
+    throw (error.response)
+  }
 
   // trim content
   const response = transform(charactersResponse)
@@ -65,17 +73,10 @@ async function charactersService (req, next) {
  */
 async function request (charactersOption, req, next) {
   // get request for list of user's characters
-  let charactersResponse
-
   console.info('/characters - option: ', charactersOption)
 
-  try {
-    charactersResponse =
+  const charactersResponse =
       await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)
-  } catch (error) {
-    next(error)
-    return // prevent further execution of code.
-  }
 
   return charactersResponse
 }
