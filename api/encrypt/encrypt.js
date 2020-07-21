@@ -9,10 +9,16 @@ router.post('/encrypt', [
   body('state').notEmpty().withMessage('required parameter')
     .isIn(['inventory', 'vault']).withMessage('state only accepted with \'inventory\' or \'vault\'')
 ], (req, res) => {
+  console.info('/encrypt - request: ', req.body)
+
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
-    return res.status(422).json({ errors: errors.array() })
+    const message = { errors: errors.array() }
+
+    console.warn('/encrypt - bad: ', message)
+
+    return res.status(422).json(message)
   }
 
   // Encrypt
@@ -23,7 +29,11 @@ router.post('/encrypt', [
   const eHex = e64.toString(CryptoJS.enc.Hex)
 
   // respond with hex value.
-  return res.status(200).json({ hex: eHex, bungieClientId: process.env.BUNGIE_CLIENT_ID })
+  const message = { hex: eHex, bungieClientId: process.env.BUNGIE_CLIENT_ID }
+
+  console.info('/encrypt - response: ', message)
+
+  return res.status(200).json(message)
 })
 
 /* POST decrypt */
@@ -31,10 +41,16 @@ router.post('/decrypt', [
   body('hex').notEmpty().withMessage('required parameter')
     .isHexadecimal('hex').withMessage('hex property must be a hexidecimal value')
 ], (req, res) => {
+  console.info('/decrypt - request: ', req.body)
+
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
-    return res.status(422).json({ errors: errors.array() })
+    const message = { errors: errors.array() }
+
+    console.warn('/decrypt - bad: ', message)
+
+    return res.status(422).json(message)
   }
 
   // parse hex from string.
@@ -50,7 +66,11 @@ router.post('/decrypt', [
   const plain = decrypt.toString(CryptoJS.enc.Utf8)
 
   // respond with plain text.
-  return res.status(200).json({ state: plain })
+  const message = { state: plain }
+
+  console.info('/decrypt - response: ', message)
+
+  return res.status(200).json(message)
 })
 
 module.exports = router

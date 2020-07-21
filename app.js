@@ -3,7 +3,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // references to dependencies.
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'production') {
   var cors = require('cors')
 }
 const express = require('express')
@@ -35,9 +35,9 @@ app.use(express.urlencoded({ extended: false }))
 app.use(helmet())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(cookieParser())
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'production') {
   app.use(cors({
-    origin: /http:(\/\/127\.0\.0\.1)|(localhost):(42)|(30)00/,
+    origin: /http:\/\/(?:127\.0\.0\.1|localhost):(?:42|30)00/,
     credentials: true
   }))
 }
