@@ -13,6 +13,8 @@ router.get('/oauth/access', (req, res, next) => {
 
     console.info('/oauth/access - response: ', message)
 
+    res.shouldKeepAlive = false // prevent duplicate requests with stale 'code'
+
     return res.status(200).json(message)
   }).catch(error => {
     next(error.response)
