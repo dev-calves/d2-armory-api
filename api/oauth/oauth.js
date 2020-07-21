@@ -4,21 +4,32 @@ const express = require('express')
 const router = express.Router()
 
 router.get('/oauth/access', (req, res, next) => {
+  console.info('/oauth/access - request: ', 'code: ', req.headers.code)
+
   // request to receive tokens.
   return OAuthUtility.oauthRequest(OAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
     // send ok response
-    return res.status(200).json({ message: 'tokens recieved.' })
+    const message = { message: 'tokens recieved.' }
+
+    console.info('/oauth/access - response: ', message)
+
+    return res.status(200).json(message)
   }).catch(error => {
     next(error.response)
   })
 })
 
 router.get('/oauth/refresh', (req, res, next) => {
-  // if (req.cookies['refresh-token']) {
   if (req.headers['x-refresh-token']) {
-    return res.status(200).json({ 'refresh-token-available': true })
+    const message = { 'refresh-token-available': true }
+    console.info('/oauth/refresh - response: ', message)
+
+    return res.status(200).json(message)
   } else {
-    return res.status(200).json({ 'refresh-token-available': false })
+    const message = { 'refresh-token-available': false }
+    console.info('/oauth/refresh - response: ', message)
+
+    return res.status(200).json(message)
   }
 })
 
@@ -27,7 +38,11 @@ router.get('/oauth/delete', (req, res, next) => {
   OAuthUtility.deleteTokens(req, res)
 
   // send ok response
-  return res.status(200).json({ message: 'tokens deleted.' })
+  const message = { message: 'tokens deleted.' }
+
+  console.info('/oauth/delete - response: ', message)
+
+  return res.status(200).json(message)
 })
 
 module.exports = router

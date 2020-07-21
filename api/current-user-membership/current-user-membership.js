@@ -7,8 +7,12 @@ const router = express.Router()
 
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
+  console.info('/current-user-membership - request: ')
+
   // retrieve current user's data
   return currentUserMembershipService(req, res, next).then(response => {
+    console.info('/current-user-membership - response: ', response)
+
     return res.status(200).json(response)
   }).catch(error => {
     next(error)
@@ -42,9 +46,12 @@ async function currentUserMembershipService (req, res, next) {
  * @param {*} next
  */
 async function request (requestOptions, next) {
+  console.info('/current-user-membership - options: ', requestOptions)
+
   // get current user membership request
   const currentUserResponse =
-      await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`, requestOptions)
+      await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`,
+        requestOptions)
 
   return currentUserResponse
 }
