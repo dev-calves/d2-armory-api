@@ -23,6 +23,8 @@ module.exports = function errorHandler (error, req, res, next) {
       message.message = error.response.status
     } else if (error.response) {
       message.message = error.response
+    } else if (error.data) {
+      message.message = error.data
     } else {
       message.message = error
     }
