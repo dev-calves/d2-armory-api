@@ -3,7 +3,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // references to dependencies.
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV !== 'production') {
   var cors = require('cors')
 }
 const express = require('express')
@@ -19,7 +19,6 @@ const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
 const indexRouter = require('./routes/index')
-const workerRouter = require('./routes/ngsw-worker')
 const currentUserMembershipController = require('./api/current-user-membership/current-user-membership')
 const charactersController = require('./api/characters/characters')
 const encryptController = require('./api/encrypt/encrypt')
@@ -35,7 +34,7 @@ app.use(express.urlencoded({ extended: false }))
 app.use(helmet())
 app.use(express.static(path.join(__dirname, 'public')))
 app.use(cookieParser())
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV !== 'production') {
   app.use(cors({
     origin: /http:\/\/(?:127\.0\.0\.1|localhost):(?:42|30)00/,
     credentials: true
@@ -50,7 +49,6 @@ app.use('/api',
   encryptController,
   oauthController
 )
-app.get('/ngsw-worker.js', workerRouter)
 app.use('/*', indexRouter)
 
 // handles requests with missing tokens.
