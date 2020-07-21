@@ -17,10 +17,18 @@ router.get('/characters', [
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
-    return res.status(422).json({ errors: errors.array() })
+    const message = { errors: errors.array() }
+
+    console.warn(message)
+
+    return res.status(422).json(message)
   }
 
+  console.info('/characters - request: ', req.query)
+
   return charactersService(req, res).then(response => {
+    console.info('/characters - response: ', response)
+
     return res.status(200).json(response)
   })
 })
@@ -58,6 +66,8 @@ async function charactersService (req, next) {
 async function request (charactersOption, req, next) {
   // get request for list of user's characters
   let charactersResponse
+
+  console.info('/characters - option: ', charactersOption)
 
   try {
     charactersResponse =
