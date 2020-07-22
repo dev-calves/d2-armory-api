@@ -8,7 +8,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 const express = require('express')
 const path = require('path')
-const logger = require('morgan')
+const morgan = require('morgan')
 const helmet = require('helmet')
 const cookieParser = require('cookie-parser')
 
@@ -29,7 +29,7 @@ const oauthController = require('./api/oauth/oauth')
 const app = express()
 
 // mount middleware dependencies.
-app.use(logger(process.env.MORGAN_SETTING))
+app.use(morgan(process.env.MORGAN_SETTING))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(helmet())

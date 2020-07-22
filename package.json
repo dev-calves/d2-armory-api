@@ -33,7 +33,8 @@
     "pug": "^2.0.4",
     "snyk": "^1.364.0",
     "supertest": "^4.0.2",
-    "supports-color": "^7.1.0"
+    "supports-color": "^7.1.0",
+    "winston": "^3.3.3"
   },
   "devDependencies": {
     "cross-env": "^7.0.2",

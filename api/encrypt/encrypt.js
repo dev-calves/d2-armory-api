@@ -3,23 +3,24 @@ const CryptoJS = require('crypto-js')
 const express = require('express')
 const router = express.Router()
 const { body, validationResult } = require('express-validator')
+const logger = require('../../winston')
 
 /* POST encrypt */
 router.post('/encrypt', [
   body('state').notEmpty().withMessage('required parameter')
     .isIn(['inventory', 'vault']).withMessage('state only accepted with \'inventory\' or \'vault\'')
 ], (req, res) => {
-  console.info('/encrypt - request: ', req.body)
-
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     const message = { errors: errors.array() }
 
-    console.warn('/encrypt - bad: ', message)
+    logger.warn({ message: req.path, bad: message })
 
     return res.status(422).json(message)
   }
+
+  logger.info({ message: req.path, request: req.body })
 
   // Encrypt
   const b64 = CryptoJS.AES.encrypt(req.body.state, process.env.ENCRYPT_SECRET).toString()
@@ -31,7 +32,7 @@ router.post('/encrypt', [
   // respond with hex value.
   const message = { hex: eHex, bungieClientId: process.env.BUNGIE_CLIENT_ID }
 
-  console.info('/encrypt - response: ', message)
+  logger.info({ message: req.path, response: message })
 
   return res.status(200).json(message)
 })
@@ -41,17 +42,17 @@ router.post('/decrypt', [
   body('hex').notEmpty().withMessage('required parameter')
     .isHexadecimal('hex').withMessage('hex property must be a hexidecimal value')
 ], (req, res) => {
-  console.info('/decrypt - request: ', req.body)
-
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     const message = { errors: errors.array() }
 
-    console.warn('/decrypt - bad: ', message)
+    logger.warn({ message: req.path, bad: message })
 
     return res.status(422).json(message)
   }
+
+  logger.info({ message: req.path, request: req.body })
 
   // parse hex from string.
   const reb64 = CryptoJS.enc.Hex.parse(req.body.hex)
@@ -68,7 +69,7 @@ router.post('/decrypt', [
   // respond with plain text.
   const message = { state: plain }
 
-  console.info('/decrypt - response: ', message)
+  logger.info({ message: req.path, response: message })
 
   return res.status(200).json(message)
 })

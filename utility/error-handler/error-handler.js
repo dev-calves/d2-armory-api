@@ -1,3 +1,5 @@
+const logger = require('../../winston')
+
 module.exports = function errorHandler (error, req, res, next) {
   const message = {}
 
@@ -29,7 +31,7 @@ module.exports = function errorHandler (error, req, res, next) {
       message.message = error
     }
 
-    console.log(`${req.url} - error: `, message)
+    logger.error({ message: req.path, error: message })
 
     return res.status(message.status).json(message)
   } else {
