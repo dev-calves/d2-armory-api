@@ -3,11 +3,11 @@ const express = require('express')
 
 const router = express.Router()
 
-router.post('/oauth/access', (req, res, next) => {
-  console.info('/oauth/access - request: ', 'code: ', req.body.code)
+router.get('/oauth/access', (req, res, next) => {
+  console.info('/oauth/access - request: ', 'code: ', req.headers.code)
 
   // request to receive tokens.
-  return OAuthUtility.oauthRequest(OAuthUtility.tokensBody(req.body.code), req, res).then(response => {
+  return OAuthUtility.oauthRequest(OAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
     // send ok response
     const message = { message: 'tokens recieved.' }
 
@@ -15,7 +15,7 @@ router.post('/oauth/access', (req, res, next) => {
 
     return res.status(200).json(message)
   }).catch(error => {
-    next(error.response)
+    next(error.response || error)
   })
 })
 
