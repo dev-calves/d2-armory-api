@@ -1,6 +1,7 @@
 const axios = require('axios')
 const jsonata = require('jsonata')
 const { query, validationResult } = require('express-validator')
+const logger = require('../../winston')
 const ClassEnum = require('./models/class')
 const GenderEnum = require('./models/gender')
 const RaceEnum = require('./models/race')
@@ -19,15 +20,15 @@ router.get('/characters', [
   if (!errors.isEmpty()) {
     const message = { errors: errors.array() }
 
-    console.warn(message)
+    logger.warn({ message: req.path, bad: message })
 
     return res.status(422).json(message)
   }
 
-  console.info('/characters - request: ', req.query)
+  logger.info({ message: req.path, request: req.query })
 
   return charactersService(req, res).then(response => {
-    console.info('/characters - response: ', response)
+    logger.info({ message: req.path, response: response })
 
     return res.status(200).json(response)
   }).catch(error => {
@@ -73,7 +74,7 @@ async function charactersService (req, next) {
  */
 async function request (charactersOption, req, next) {
   // get request for list of user's characters
-  console.info('/characters - option: ', charactersOption)
+  logger.info({ message: req.path, options: charactersOption })
 
   const charactersResponse =
       await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)

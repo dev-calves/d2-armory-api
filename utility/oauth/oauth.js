@@ -2,6 +2,7 @@ const qs = require('qs')
 const axios = require('axios')
 const createError = require('http-errors')
 const jwt = require('jsonwebtoken')
+const logger = require('../../winston')
 
 const accessCookieOptions = {
   domain: process.env.FRONT_END_DOMAIN,
@@ -25,13 +26,13 @@ module.exports = {
       }
     }
 
-    console.info('oauthRequest - request: ', 'data: ', data)
+    logger.info({ message: `${req.path} - oauthRequest`, request: data })
 
     // POST request for the access token.
     // data is being stringified since axios doesn't support form requests for node.
     const oauthResponse = await axios.post(url, qs.stringify(data), config)
 
-    console.info('oauthRequest - response: ', oauthResponse.data)
+    logger.info({ message: `${req.path} - oauthRequest`, response: oauthResponse.data })
 
     // set token cookies
     this.setTokenCookies(oauthResponse.data, req, res)
