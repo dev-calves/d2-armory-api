@@ -19,6 +19,7 @@ const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
 const indexRouter = require('./routes/index')
+const workerRouter = require('./routes/ngsw-worker')
 const currentUserMembershipController = require('./api/current-user-membership/current-user-membership')
 const charactersController = require('./api/characters/characters')
 const encryptController = require('./api/encrypt/encrypt')
@@ -49,6 +50,7 @@ app.use('/api',
   encryptController,
   oauthController
 )
+app.get('/ngsw-worker.js', workerRouter)
 app.use('/*', indexRouter)
 
 // handles requests with missing tokens.
