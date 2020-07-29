@@ -25,10 +25,10 @@ router.get('/characters', [
     return res.status(422).json(message)
   }
 
-  logger.info({ message: req.path, request: req.query })
+  logger.debug({ message: req.path, request: req.query })
 
   return charactersService(req, res).then(response => {
-    logger.info({ message: req.path, response: response })
+    logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
   }).catch(error => {
@@ -44,7 +44,7 @@ module.exports = router
  * @param {*} req
  * @param {*} next
  */
-async function charactersService (req, next) {
+async function charactersService (req) {
   // request options
   const charactersOption = {
     headers: {
@@ -55,7 +55,7 @@ async function charactersService (req, next) {
   // request characters
   let charactersResponse
   try {
-    charactersResponse = await request(charactersOption, req, next)
+    charactersResponse = await request(charactersOption, req)
   } catch (error) {
     throw (error.response)
   }
@@ -72,14 +72,16 @@ async function charactersService (req, next) {
  * @param {*} req
  * @param {*} next
  */
-async function request (charactersOption, req, next) {
+async function request (charactersOption, req) {
   // get request for list of user's characters
-  logger.info({ message: req.path, options: charactersOption })
+  logger.debug({ message: req.path, options: charactersOption })
 
   const charactersResponse =
-      await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)
+    await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)
 
-  return charactersResponse
+  logger.debug({ message: req.path, bungieResponse: charactersResponse.data })
+
+  return charactersResponse.data
 }
 
 /**
@@ -99,7 +101,7 @@ function transform (charactersResponse) {
     }`)
 
   // response transformed
-  const response = expression.evaluate(charactersResponse.data)
+  const response = expression.evaluate(charactersResponse)
 
   // convert enum integers into enum string
   response.forEach((character) => {

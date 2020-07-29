@@ -26,13 +26,13 @@ module.exports = {
       }
     }
 
-    logger.info({ message: `${req.path} - oauthRequest`, request: data })
+    logger.debug({ message: `${req.path} - oauthRequest`, request: data })
 
     // POST request for the access token.
     // data is being stringified since axios doesn't support form requests for node.
     const oauthResponse = await axios.post(url, qs.stringify(data), config)
 
-    logger.info({ message: `${req.path} - oauthRequest`, response: oauthResponse.data })
+    logger.debug({ message: `${req.path} - oauthRequest`, response: oauthResponse.data })
 
     // set token cookies
     this.setTokenCookies(oauthResponse.data, req, res)
