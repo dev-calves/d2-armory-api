@@ -8,7 +8,7 @@ module.exports = function oauthHandler (error, req, res, next) {
   if (error.status === 401 || error.statusCode === 401) {
     // request for a new token.
     if (req.headers['x-refresh-token']) {
-      logger.info({ message: `${req.path} - oauth-handler`, refresh: req.headers['x-refresh-token'] })
+      logger.debug({ message: `${req.path} - oauth-handler`, refresh: req.headers['x-refresh-token'] })
 
       // request new tokens and set them as cookies for future requests.
       OAuthUtility.oauthRequest(
@@ -24,11 +24,11 @@ module.exports = function oauthHandler (error, req, res, next) {
             data: req.body
           }
 
-          logger.info({ message: `${req.path} - oauth-handler - retry`, options: options })
+          logger.debug({ message: `${req.path} - oauth-handler - retry`, options: options })
 
           // re-try client request with the tokens available.
           axios(options).then(response => {
-            logger.info({ message: `${req.path} - oauth-handler - retry`, response: response.data })
+            logger.debug({ message: `${req.path} - oauth-handler - retry`, response: response.data })
 
             res.status(200).json(response.data)
             return // prevent further execution of code.

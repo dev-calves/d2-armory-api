@@ -9,7 +9,7 @@ const router = express.Router()
 router.get('/current-user-membership', (req, res, next) => {
   // retrieve current user's data
   return currentUserMembershipService(req, res, next).then(response => {
-    logger.info({ message: req.path, response: response })
+    logger.debug({ message: req.path, response: response })
 
     return res.status(200).json(response)
   }).catch(error => {
@@ -44,14 +44,16 @@ async function currentUserMembershipService (req, res, next) {
  * @param {*} next
  */
 async function request (requestOptions, req) {
-  logger.info({ message: req.path, options: requestOptions })
+  logger.debug({ message: req.path, options: requestOptions })
 
   // get current user membership request
   const currentUserResponse =
       await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`,
         requestOptions)
 
-  return currentUserResponse
+  logger.debug({ message: req.path, bungieResponse: currentUserResponse.data })
+
+  return currentUserResponse.data
 }
 
 /**
@@ -67,7 +69,7 @@ function transform (currentUserResponse) {
     }`)
 
   // transform response
-  const response = expression.evaluate(currentUserResponse.data)
+  const response = expression.evaluate(currentUserResponse)
 
   return response
 }

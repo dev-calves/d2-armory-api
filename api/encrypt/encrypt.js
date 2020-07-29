@@ -20,7 +20,7 @@ router.post('/encrypt', [
     return res.status(422).json(message)
   }
 
-  logger.info({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, request: req.body })
 
   // Encrypt
   const b64 = CryptoJS.AES.encrypt(req.body.state, process.env.ENCRYPT_SECRET).toString()
@@ -32,7 +32,7 @@ router.post('/encrypt', [
   // respond with hex value.
   const message = { hex: eHex, bungieClientId: process.env.BUNGIE_CLIENT_ID }
 
-  logger.info({ message: req.path, response: message })
+  logger.debug({ message: req.path, response: message })
 
   return res.status(200).json(message)
 })
@@ -52,7 +52,7 @@ router.post('/decrypt', [
     return res.status(422).json(message)
   }
 
-  logger.info({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, request: req.body })
 
   // parse hex from string.
   const reb64 = CryptoJS.enc.Hex.parse(req.body.hex)
@@ -69,7 +69,7 @@ router.post('/decrypt', [
   // respond with plain text.
   const message = { state: plain }
 
-  logger.info({ message: req.path, response: message })
+  logger.debug({ message: req.path, response: message })
 
   return res.status(200).json(message)
 })
