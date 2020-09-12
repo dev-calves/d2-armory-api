@@ -11,7 +11,7 @@
     "prepare": "npm run snyk-protect"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^0.20.0",
     "axios-mock-adapter": "^1.18.2",
     "constantinople": "^4.0.1",
     "cookie-parser": "~1.4.5",
