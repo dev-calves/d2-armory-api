@@ -8,7 +8,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 const express = require('express')
 const path = require('path')
-const logger = require('morgan')
+const morgan = require('morgan')
 const helmet = require('helmet')
 const cookieParser = require('cookie-parser')
 
@@ -24,12 +24,13 @@ const currentUserMembershipController = require('./api/current-user-membership/c
 const charactersController = require('./api/characters/characters')
 const encryptController = require('./api/encrypt/encrypt')
 const oauthController = require('./api/oauth/oauth')
+const equipmentsController = require('./api/equipments/equipments')
 
 // create express app
 const app = express()
 
 // mount middleware dependencies.
-app.use(logger(process.env.MORGAN_SETTING))
+app.use(morgan(process.env.MORGAN_SETTING))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(helmet())
@@ -48,7 +49,8 @@ app.use('/api',
   currentUserMembershipController,
   charactersController,
   encryptController,
-  oauthController
+  oauthController,
+  equipmentsController
 )
 app.get('/ngsw-worker.js', workerRouter)
 app.use('/*', indexRouter)

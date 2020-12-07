@@ -2,16 +2,14 @@ const axios = require('axios')
 const jsonata = require('jsonata')
 const express = require('express')
 const OAuthUtility = require('../../utility/oauth/oauth')
-
+const logger = require('../../winston')
 const router = express.Router()
 
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
-  console.info('/current-user-membership - request: ')
-
   // retrieve current user's data
   return currentUserMembershipService(req, res, next).then(response => {
-    console.info('/current-user-membership - response: ', response)
+    logger.debug({ message: req.path, response: response })
 
     return res.status(200).json(response)
   }).catch(error => {
@@ -31,7 +29,7 @@ async function currentUserMembershipService (req, res, next) {
 
   let currentUserMembershipResponse
   try {
-    currentUserMembershipResponse = await request(requestOptions, next)
+    currentUserMembershipResponse = await request(requestOptions, req, next)
   } catch (error) {
     throw (error.response)
   }
@@ -45,15 +43,17 @@ async function currentUserMembershipService (req, res, next) {
  * @param {*} requestOptions
  * @param {*} next
  */
-async function request (requestOptions, next) {
-  console.info('/current-user-membership - options: ', requestOptions)
+async function request (requestOptions, req) {
+  logger.debug({ message: req.path, options: requestOptions })
 
   // get current user membership request
   const currentUserResponse =
       await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`,
         requestOptions)
 
-  return currentUserResponse
+  logger.debug({ message: req.path, bungieResponse: currentUserResponse.data })
+
+  return currentUserResponse.data
 }
 
 /**
@@ -69,7 +69,7 @@ function transform (currentUserResponse) {
     }`)
 
   // transform response
-  const response = expression.evaluate(currentUserResponse.data)
+  const response = expression.evaluate(currentUserResponse)
 
   return response
 }
