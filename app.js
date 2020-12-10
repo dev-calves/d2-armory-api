@@ -25,6 +25,7 @@ const charactersController = require('./api/characters/characters')
 const encryptController = require('./api/encrypt/encrypt')
 const oauthController = require('./api/oauth/oauth')
 const equipmentsController = require('./api/equipments/equipments')
+const definitionController = require('./api/definition/definition')
 
 // create express app
 const app = express()
@@ -50,7 +51,8 @@ app.use('/api',
   charactersController,
   encryptController,
   oauthController,
-  equipmentsController
+  equipmentsController,
+  definitionController
 )
 app.get('/ngsw-worker.js', workerRouter)
 app.use('/*', indexRouter)
