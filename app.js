@@ -26,6 +26,7 @@ const encryptController = require('./api/encrypt/encrypt')
 const oauthController = require('./api/oauth/oauth')
 const equipmentsController = require('./api/equipments/equipments')
 const definitionController = require('./api/definition/definition')
+const transferItemController = require('./api/transfer-item/transfer-item')
 
 // create express app
 const app = express()
@@ -52,9 +53,10 @@ app.use('/api',
   encryptController,
   oauthController,
   equipmentsController,
-  definitionController
+  definitionController,
+  transferItemController
 )
-app.get('/ngsw-worker.js', workerRouter)
+app.get('/ngsw-worker.js', workerRouter) // provides a route for the angular service worker.
 app.use('/*', indexRouter)
 
 // handles requests with missing tokens.
