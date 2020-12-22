@@ -8,7 +8,7 @@ const router = express.Router()
 
 const OauthUtility = require('../../utility/oauth/oauth')
 
-/* POST equipments */
+/* POST transfer-item */
 router.post('/transfer-item', [
   // validations
   body('itemReferenceHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
@@ -39,7 +39,7 @@ router.post('/transfer-item', [
   })
 })
 
-/* POST equipments */
+/* POST transfer-items */
 router.post('/transfer-items', [
   // validations
   body('transferToVault').notEmpty().withMessage('required parameter').isBoolean().withMessage('must be a boolean'),
