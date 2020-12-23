@@ -136,7 +136,16 @@ async function request (equipmentsOption, req) {
 
 function transform (equipmentsResponse) {
   // expression for transforming the response
-  const expression = jsonata('Response.equipment.data.{"equipmentIds": items.itemInstanceId}')
+  const expression = jsonata(
+    `
+      {
+        "equipment": Response.equipment.data.items.{
+          "itemId": itemInstanceId,
+          "itemReferenceHash": $string(itemHash)
+        }
+      }
+    `
+  )
 
   // response transformed
   const response = expression.evaluate(equipmentsResponse)
