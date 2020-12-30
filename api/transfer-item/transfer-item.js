@@ -27,7 +27,7 @@ router.post('/transfer-item', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   return transferItemService(req).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
@@ -59,7 +59,7 @@ router.post('/transfer-items', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   return transferItemsService(req).then(response => {
     logger.debug({ message: req.path, clientResponse: response })

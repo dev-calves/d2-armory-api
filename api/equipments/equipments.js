@@ -25,7 +25,7 @@ router.get('/equipments/capture', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, request: req.query })
+  logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
   return captureService(req, res).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
@@ -42,10 +42,13 @@ router.post('/equipments/dawn', [
   // validations
   body('itemIds').isArray().withMessage('must be an array of int'),
   body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  body('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
+  body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
+  body('transferLocation').optional().isIn(['inventory', 'vault']).withMessage('optional parameter. If declared, must be either \'vault\', \'inventory\'')
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
+
   if (!errors.isEmpty()) {
     const message = { errors: errors.array() }
 
@@ -54,21 +57,70 @@ router.post('/equipments/dawn', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return dawnService(req, res).then(response => {
-    logger.debug({ message: req.path, clientResponse: response })
+  if (req.body && req.body.transferLocation && req.body.transferLocation === 'vault') {
+    return captureService(req).then(captureResponse => {
+      logger.debug({ message: `${req.path} - capture`, captureResponse: captureResponse })
 
-    return res.status(200).json(response)
-  }).catch(error => {
-    next(error)
-    return
-  })
+      return dawnService(req).then(clientResponse => {
+        logger.debug({ message: `${req.path} - dawn`, clientResponse: clientResponse })
+
+        return transferItemsService(req, captureResponse).then(transferResponse => {
+          logger.debug({ message: `${req.path} - transfer-items`, transferResponse: transferResponse })
+
+          return res.status(200).json(clientResponse)
+        }).catch(error => {
+          next(error)
+          return
+        })
+      }).catch(error => {
+        next(error)
+        return
+      })
+    }).catch(error => {
+      next(error)
+      return
+    })
+  } else {
+    return dawnService(req).then(response => {
+      logger.debug({ message: req.path, clientResponse: response })
+
+      return res.status(200).json(response)
+    }).catch(error => {
+      next(error)
+      return
+    })
+  }
 })
 
 module.exports = router
 
-async function dawnService (req, next) {
+async function transferItemsService (req, captureResponse) {
+  // request options
+  const transferItemsOption = {
+    method: 'POST',
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/transfer-items`,
+    headers: req.headers,
+    data: {
+      transferToVault: true,
+      items: captureResponse.equipment,
+      characterId: req.body.characterId,
+      membershipType: req.body.membershipType
+    }
+  }
+
+  let response
+  try {
+    response = await transferItemsRequest(transferItemsOption, req)
+  } catch (error) {
+    throw (error.response)
+  }
+
+  return response
+}
+
+async function dawnService (req) {
   // request options
   const equipmentsOption = {
     method: 'POST',
@@ -100,11 +152,11 @@ async function dawnService (req, next) {
   return clientResponse
 }
 
-async function captureService (req, next) {
+async function captureService (req) {
   // request options
   const equipmentsOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/Character/${req.query.characterId}?components=205`,
+    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType || req.body.membershipType}/Profile/${req.query.membershipId || req.body.membershipId}/Character/${req.query.characterId || req.body.characterId}?components=205`,
     headers: {
       'X-API-Key': process.env.API_KEY
     }
@@ -125,13 +177,23 @@ async function captureService (req, next) {
 }
 
 async function request (equipmentsOption, req) {
-  logger.debug({ message: req.path, options: equipmentsOption })
+  logger.debug({ message: `${req.path} - capture`, options: equipmentsOption })
 
   const equipmentsResponse = await axios(equipmentsOption)
 
-  logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  logger.debug({ message: `${req.path} - capture`, bungieResponse: equipmentsResponse.data })
 
   return equipmentsResponse.data
+}
+
+async function transferItemsRequest (transferItemsOption, req) {
+  logger.debug({ message: req.path, options: transferItemsOption })
+
+  const transferItemsResponse = await axios(transferItemsOption)
+
+  logger.debug({ message: req.path, transferItemsResponse: transferItemsResponse.data })
+
+  return transferItemsResponse.data
 }
 
 function transform (equipmentsResponse) {

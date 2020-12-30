@@ -20,7 +20,7 @@ router.post('/encrypt', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   // Encrypt
   const b64 = CryptoJS.AES.encrypt(req.body.state, process.env.ENCRYPT_SECRET).toString()
@@ -52,7 +52,7 @@ router.post('/decrypt', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   // parse hex from string.
   const reb64 = CryptoJS.enc.Hex.parse(req.body.hex)

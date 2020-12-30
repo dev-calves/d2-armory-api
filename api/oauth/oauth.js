@@ -5,7 +5,7 @@ const express = require('express')
 const router = express.Router()
 
 router.get('/oauth/access', (req, res, next) => {
-  logger.debug({ message: req.path, request: req.headers.code })
+  logger.debug({ message: req.path, headers: req.headers, request: req.headers.code })
 
   // request to receive tokens.
   return OAuthUtility.oauthRequest(OAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
