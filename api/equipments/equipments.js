@@ -7,6 +7,7 @@ const express = require('express')
 const router = express.Router()
 
 const OauthUtility = require('../../utility/oauth/oauth')
+const ErrorCodesEnum = require('../../utility/models/error-codes.enum')
 
 /* GET equipments */
 router.get('/equipments/capture', [
@@ -110,14 +111,14 @@ async function transferItemsService (req, captureResponse) {
     }
   }
 
-  let response
+  let transferResponse
   try {
-    response = await transferItemsRequest(transferItemsOption, req)
+    transferResponse = await transferItemsRequest(transferItemsOption, req)
   } catch (error) {
     throw (error.response)
   }
 
-  return response
+  return transferResponse
 }
 
 async function dawnService (req) {
@@ -132,22 +133,15 @@ async function dawnService (req) {
     },
     data: req.body
   }
-  const clientResponse = {
-    equipStatus: 'fail'
-  }
 
-  let response
+  let bungieResponse
   try {
-    response = await request(equipmentsOption, req)
+    bungieResponse = await request(equipmentsOption, req)
   } catch (error) {
     throw (error.response)
   }
 
-  if (response &&
-    response.ErrorStatus.includes('Success') &&
-    response.Message.includes('Ok')) {
-    clientResponse.equipStatus = 'success'
-  }
+  const clientResponse = transform(bungieResponse, 'dawn', req)
 
   return clientResponse
 }
@@ -163,17 +157,17 @@ async function captureService (req) {
   }
 
   // request characters
-  let equipmentsResponse
+  let bungieResponse
   try {
-    equipmentsResponse = await request(equipmentsOption, req)
+    bungieResponse = await request(equipmentsOption, req)
   } catch (error) {
     throw (error.response)
   }
 
   // trim content
-  const response = transform(equipmentsResponse)
+  const clientResponse = transform(bungieResponse, 'capture', req)
 
-  return response
+  return clientResponse
 }
 
 async function request (equipmentsOption, req) {
@@ -196,21 +190,45 @@ async function transferItemsRequest (transferItemsOption, req) {
   return transferItemsResponse.data
 }
 
-function transform (equipmentsResponse) {
+function transform (equipmentsResponse, type, req) {
   // expression for transforming the response
-  const expression = jsonata(
-    `
+  let expression
+
+  switch (type) {
+    case 'capture':
+      expression = jsonata(`
+          {
+            "equipment": Response.equipment.data.items.{
+              "itemId": itemInstanceId,
+              "itemReferenceHash": $string(itemHash)
+            }
+          }`)
+      break
+
+    case 'dawn':
+      expression = jsonata(`
       {
-        "equipment": Response.equipment.data.items.{
-          "itemId": itemInstanceId,
-          "itemReferenceHash": $string(itemHash)
+        "equipment": Response.equipResults.{
+            "itemId": itemInstanceId,
+            "equipStatus": equipStatus
         }
-      }
-    `
-  )
+      }`)
+      break
+
+    default:
+      throw new Error('equipments service transformer is missing a type.')
+  }
 
   // response transformed
   const response = expression.evaluate(equipmentsResponse)
 
+  // replace bungie's integer error code with a message, taken from bungie's platform site.
+  if (type === 'dawn') {
+    response.equipment.forEach(item => {
+      item.equipStatus = ErrorCodesEnum(item.equipStatus, req.path)
+    })
+  }
+
+  // return
   return response
 }
