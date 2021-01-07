@@ -9,6 +9,8 @@ const router = express.Router()
 const OauthUtility = require('../../utility/oauth/oauth')
 const ErrorCodesEnum = require('../../utility/models/error-codes.enum')
 
+const equipmentList = require('./models/equipment-list')
+
 /* GET equipments */
 router.get('/equipments/capture', [
   // validations
@@ -102,7 +104,6 @@ async function transferItemsService (req, captureResponse) {
   const transferItemsOption = {
     method: 'POST',
     url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/transfer-items`,
-    headers: req.headers,
     data: {
       transferToVault: true,
       items: captureResponse.equipment,
@@ -111,14 +112,22 @@ async function transferItemsService (req, captureResponse) {
     }
   }
 
-  let transferResponse
-  try {
-    transferResponse = await transferItemsRequest(transferItemsOption, req)
-  } catch (error) {
-    throw (error.response)
-  }
+  const transferResponse = await request(transferItemsOption, req)
 
   return transferResponse
+}
+
+async function definitionService (req, captureResponse) {
+  // request options
+  const definitionOption = {
+    method: 'POST',
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/equipment-slots`,
+    data: captureResponse
+  }
+
+  const definitionResponse = await request(definitionOption, req)
+
+  return definitionResponse
 }
 
 async function dawnService (req) {
@@ -157,37 +166,28 @@ async function captureService (req) {
   }
 
   // request characters
-  let bungieResponse
-  try {
-    bungieResponse = await request(equipmentsOption, req)
-  } catch (error) {
-    throw (error.response)
-  }
+  const bungieResponse = await request(equipmentsOption, req)
 
   // trim content
-  const clientResponse = transform(bungieResponse, 'capture', req)
+  const transformedResponse = transform(bungieResponse, 'capture', req)
+
+  // request to define the types of each equipment
+  const definitionResponse = await definitionService(req, transformedResponse)
+
+  // filter out equipment to not capture
+  const clientResponse = definitionResponse.filter(item => equipmentList.includes(item.slotType))
 
   return clientResponse
 }
 
 async function request (equipmentsOption, req) {
-  logger.debug({ message: `${req.path} - capture`, options: equipmentsOption })
+  logger.debug({ message: req.path, options: equipmentsOption })
 
   const equipmentsResponse = await axios(equipmentsOption)
 
-  logger.debug({ message: `${req.path} - capture`, bungieResponse: equipmentsResponse.data })
+  logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
 
   return equipmentsResponse.data
-}
-
-async function transferItemsRequest (transferItemsOption, req) {
-  logger.debug({ message: req.path, options: transferItemsOption })
-
-  const transferItemsResponse = await axios(transferItemsOption)
-
-  logger.debug({ message: req.path, transferItemsResponse: transferItemsResponse.data })
-
-  return transferItemsResponse.data
 }
 
 function transform (equipmentsResponse, type, req) {
