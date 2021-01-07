@@ -31,6 +31,10 @@ router.get('/equipments/capture', [
   return captureService(req, res).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
+    // TODO: call the definition service on each item to determine the slot type of each item.
+    // TODO: create a list of approved slot types.
+    // TODO: remove items from the response that are not approved slot types.
+
     return res.status(200).json(response)
   }).catch(error => {
     next(error)
@@ -121,6 +125,32 @@ async function transferItemsService (req, captureResponse) {
   return transferResponse
 }
 
+async function definitionService (req, captureResponse) {
+  // TODO: change the code in here to call a post route.
+
+  // request options
+  const transferItemsOption = {
+    method: 'POST',
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/transfer-items`,
+    headers: req.headers,
+    data: {
+      transferToVault: true,
+      items: captureResponse.equipment,
+      characterId: req.body.characterId,
+      membershipType: req.body.membershipType
+    }
+  }
+
+  let transferResponse
+  try {
+    transferResponse = await transferItemsRequest(transferItemsOption, req)
+  } catch (error) {
+    throw (error.response)
+  }
+
+  return transferResponse
+}
+
 async function dawnService (req) {
   // request options
   const equipmentsOption = {
@@ -165,9 +195,23 @@ async function captureService (req) {
   }
 
   // trim content
-  const clientResponse = transform(bungieResponse, 'capture', req)
+  const transformedResponse = transform(bungieResponse, 'capture', req)
 
-  return clientResponse
+  let definitionResponse
+  try {
+    definitionResponse = await definitionRequest(transformedResponse, req)
+  } catch (error) {
+    throw (error.response)
+  }
+
+  // TODO: filter out artifact item, vehicle, ghost, ship, finishers, emotes, etc..
+
+  // TODO: return filtered response.
+
+  // // trim content
+  // const clientResponse = transform(bungieResponse, 'capture', req)
+
+  return transformedResponse
 }
 
 async function request (equipmentsOption, req) {
@@ -178,6 +222,10 @@ async function request (equipmentsOption, req) {
   logger.debug({ message: `${req.path} - capture`, bungieResponse: equipmentsResponse.data })
 
   return equipmentsResponse.data
+}
+
+async function definitionRequest (equipment, req) {
+  // TODO: log and send a list of items to the equipment api
 }
 
 async function transferItemsRequest (transferItemsOption, req) {
