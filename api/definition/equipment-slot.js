@@ -123,7 +123,7 @@ async function equipmentSlotService (req, equipmentSlotHash, itemReferenceHash, 
     throw createError(500, 'the hash provided does not apply to the given category parameter.')
   }
 
-  clientResponse.itemId = itemReferenceHash || undefined
+  clientResponse.itemReferenceHash = itemReferenceHash || undefined
   clientResponse.name = itemName || undefined
 
   return clientResponse
