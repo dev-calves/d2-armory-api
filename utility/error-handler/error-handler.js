@@ -19,10 +19,9 @@ module.exports = function errorHandler (error, req, res, next) {
   if (message.status >= 400) {
     if (error.message && error.message.data) {
       message.message = error.message.data
-    } else if (error.message) {
-      message.message = error.message
-    } else if (error.response && error.response.status) {
-      message.message = error.response.status
+    } else if (error.response && error.response.data) {
+      message.config = error.response.config
+      message.message = error.response.data
     } else if (error.response) {
       message.message = error.response
     } else if (error.data) {
@@ -35,7 +34,7 @@ module.exports = function errorHandler (error, req, res, next) {
 
     return res.status(message.status).json(message)
   } else {
-    // this response will respond to the oauth handler's request
+    // this response will respond for the oauth handler's requests
     return res.status(message.status).json(message)
   }
 }
