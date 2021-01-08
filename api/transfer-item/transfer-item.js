@@ -29,7 +29,7 @@ router.post('/transfer-item', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return transferItemService(req).then(response => {
+  return transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemReferenceHash).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -61,9 +61,13 @@ router.post('/transfer-items', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return transferItemsService(req).then(response => {
-    logger.debug({ message: req.path, clientResponse: response })
+  const listOfTransfers = [] // holds the collective responses from the item transfer api
 
+  for (const item of req.body.items) {
+    listOfTransfers.push(transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemReferenceHash))
+  }
+
+  return Promise.all(listOfTransfers).then(response => {
     return res.status(200).json(response)
   }).catch(error => {
     next(error)
@@ -73,7 +77,7 @@ router.post('/transfer-items', [
 
 module.exports = router
 
-async function transferItemService (req, item) {
+async function transferItemService (req, membershipType, characterId, transferToVault, itemId, itemReferenceHash) {
   // request options
   const transferItemOption = {
     method: 'POST',
@@ -84,14 +88,16 @@ async function transferItemService (req, item) {
       Authorization: OauthUtility.authorization(req)
     },
     data: {
-      itemReferenceHash: (item) ? item.itemReferenceHash : req.body.itemReferenceHash,
-      itemId: (item) ? item.itemId : req.body.itemId,
-      transferToVault: req.body.transferToVault,
-      characterId: req.body.characterId,
-      membershipType: req.body.membershipType
+      itemReferenceHash: itemReferenceHash,
+      itemId: itemId,
+      transferToVault: transferToVault,
+      characterId: characterId,
+      membershipType: membershipType
     }
   }
 
+  // itemnotfounds are returned as errors by bungie.
+  // TODO: prevent equiped items from being requested for transfers.
   let bungieResponse
   try {
     bungieResponse = await request(transferItemOption, req)
@@ -103,21 +109,10 @@ async function transferItemService (req, item) {
     }
   }
 
-  const clientResponse = transform(req, bungieResponse, item)
+  const clientResponse = transform(bungieResponse)
+  clientResponse.itemId = itemId
 
   return clientResponse
-}
-
-async function transferItemsService (req) {
-  const listOfResponses = [] // holds the collective responses from the item transfer api
-
-  for (const item of req.body.items) {
-    const clientResponse = await transferItemService(req, item)
-
-    listOfResponses.push(clientResponse)
-  }
-
-  return listOfResponses
 }
 
 async function request (transferItemOption, req) {
@@ -130,9 +125,9 @@ async function request (transferItemOption, req) {
   return bungieResponse.data
 }
 
-function transform (req, bungieResponse, item) {
+function transform (bungieResponse) {
   // expression for transforming the response
-  const expression = jsonata(`{ "itemId": ${(item) ? item.itemId : req.body.itemId}, "itemTransfered": **.ErrorStatus }`)
+  const expression = jsonata('{ "itemTransfered": **.ErrorStatus }')
 
   // response transformed
   const response = expression.evaluate(bungieResponse)
