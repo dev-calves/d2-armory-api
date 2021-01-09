@@ -76,7 +76,7 @@ router.post('/equipment-slots', [
     return res.status(422).json(message)
   }
 
-  logger.debug({ message: req.path, headers: req.headers, request: req.query })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   const requests = []
 
@@ -133,7 +133,7 @@ async function inventoryItemService (req, itemReferenceHash) {
   // request options
   const inventoryItemOption = {
     method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?inventoryHash=${itemReferenceHash}`
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?itemReferenceHash=${itemReferenceHash}`
   }
 
   const inventoryItemResponse = await request(inventoryItemOption, req)
