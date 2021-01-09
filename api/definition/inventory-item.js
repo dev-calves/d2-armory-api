@@ -19,7 +19,8 @@ router.get('/inventory-item', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
@@ -38,7 +39,7 @@ router.get('/inventory-item', [
 router.post('/inventory-items', [
   // validations
   body('itemReferenceHashes').notEmpty().withMessage('required parameter')
-    .isArray().withMessage('must be in the form of an array'),
+    .isArray().withMessage('must be an array'),
   body('itemReferenceHashes[*]').isString().withMessage('must be a string')
     .isInt().withMessage('string must only contain an integer')
 ], (req, res, next) => {
@@ -49,7 +50,8 @@ router.post('/inventory-items', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
@@ -65,7 +67,7 @@ router.post('/inventory-items', [
 
     return res.status(200).json(response)
   }).catch(error => {
-    next(error.response)
+    next(error)
     return
   })
 })
