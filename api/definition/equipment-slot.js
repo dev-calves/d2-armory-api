@@ -10,9 +10,15 @@ const router = express.Router()
 /* GET Definition */
 router.get('/equipment-slot', [
   // validations
-  query('inventoryHash').optional().isInt().withMessage('must be an int'),
+  query().custom((value, { req }) => {
+    if (!req.query.itemReferenceHash && !req.query.equipmentSlotHash) {
+      throw new Error('either \'itemReferenceHash\' or \'equipmentSlotHash\' must be provided')
+    }
+    return true
+  }),
+  query('itemReferenceHash').optional().isInt().withMessage('must be an int'),
   query('equipmentSlotHash').optional().isInt().withMessage('must be an integer').custom((value, { req }) => {
-    if (value && req.query.inventoryHash) {
+    if (value && req.query.itemReferenceHash) {
       throw new Error('must be omitted if an inventoryHash is provided')
     } else {
       return true
@@ -26,29 +32,28 @@ router.get('/equipment-slot', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  if (req.query.inventoryHash) {
-    return inventoryItemService(req, req.query.inventoryHash).then(inventoryItemResponse => {
+  if (req.query.itemReferenceHash) {
+    return inventoryItemService(req).then(inventoryItemResponse => {
       logger.debug({ message: `${req.path} - inventoryItem`, clientResponse: inventoryItemResponse })
 
-      return equipmentSlotService(req, inventoryItemResponse.equipmentSlotHash, req.query.inventoryHash, inventoryItemResponse.name).then(equipmentSlotResponse => {
+      return equipmentSlotService(req, inventoryItemResponse.equipmentSlotHash, req.query.itemReferenceHash, inventoryItemResponse.name).then(equipmentSlotResponse => {
         logger.debug({ message: `${req.path} - equipmentSlot`, clientResponse: equipmentSlotResponse })
 
         return res.status(200).json(equipmentSlotResponse)
-      }).catch(error => {
-        next(error)
-        return
       })
+    }).catch(error => {
+      next(error)
+      return
     })
   } else {
     return equipmentSlotService(req, req.query.equipmentSlotHash).then(equipmentSlotResponse => {
       logger.debug({ message: req.path, clientResponse: equipmentSlotResponse })
-
-      equipmentSlotResponse.equipmentSlotHash = req.query.equipmentSlotHash
 
       return res.status(200).json(equipmentSlotResponse)
     }).catch(error => {
@@ -61,9 +66,9 @@ router.get('/equipment-slot', [
 /* POST Definition */
 router.post('/equipment-slots', [
   // validations
-  body('equipment').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array'),
-  body('equipment[*].itemReferenceHash').notEmpty().withMessage('required parameter')
-    .isString().withMessage('must be a string')
+  body('itemReferenceHashes').notEmpty().withMessage('required parameter')
+    .isArray().withMessage('must be in the form of an array'),
+  body('itemReferenceHashes[*]').isString().withMessage('must be a string')
     .isInt().withMessage('string must only contain an integer')
 ], (req, res, next) => {
   // validation error response
@@ -73,32 +78,25 @@ router.post('/equipment-slots', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  const requests = []
+  return inventoryItemService(req, req.body).then(inventoryItemResponse => {
+    const requests = []
 
-  for (const item of req.body.equipment) {
-    requests.push(inventoryItemService(req, item.itemReferenceHash)
-      .then(inventoryItemResponse => {
-        logger.debug({ message: `${req.path} - inventoryItem`, clientResponse: inventoryItemResponse })
+    for (const item of inventoryItemResponse) {
+      requests.push(equipmentSlotService(req, item.equipmentSlotHash, item.itemReferenceHash, item.name))
+    }
 
-        return equipmentSlotService(req, inventoryItemResponse.equipmentSlotHash, item.itemReferenceHash, inventoryItemResponse.name)
-          .then(equipmentSlotResponse => {
-            logger.debug({ message: `${req.path} - equipmentSlot`, clientResponse: equipmentSlotResponse })
-
-            return equipmentSlotResponse
-          }).catch(error => {
-            next(error)
-            return
-          })
-      }))
-  }
-
-  return Promise.all(requests).then(response => {
-    return res.status(200).json(response)
+    Promise.all(requests).then(response => {
+      return res.status(200).json(response)
+    })
+  }).catch(error => {
+    next(error)
+    return
   })
 })
 
@@ -125,15 +123,28 @@ async function equipmentSlotService (req, equipmentSlotHash, itemReferenceHash, 
 
   clientResponse.itemReferenceHash = itemReferenceHash || undefined
   clientResponse.name = itemName || undefined
+  clientResponse.equipmentSlotHash = equipmentSlotHash || undefined
 
   return clientResponse
 }
 
-async function inventoryItemService (req, itemReferenceHash) {
+async function inventoryItemService (req, itemReferenceHashes) {
   // request options
-  const inventoryItemOption = {
-    method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?itemReferenceHash=${itemReferenceHash}`
+  let inventoryItemOption = {}
+
+  if (req.method.toUpperCase() === 'GET') {
+    inventoryItemOption = {
+      method: 'GET',
+      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?itemReferenceHash=${req.query.itemReferenceHash}`
+    }
+  } else if (req.method.toUpperCase() === 'POST') {
+    inventoryItemOption = {
+      method: 'POST',
+      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-items`,
+      data: req.body
+    }
+  } else {
+    throw (createError(500, 'method not available for this route'))
   }
 
   const inventoryItemResponse = await request(inventoryItemOption, req)
