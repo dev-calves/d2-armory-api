@@ -157,7 +157,7 @@ async function request (definitionOption, req) {
 
   const definitionResponse = await axios(definitionOption)
 
-  logger.debug({ message: req.path, definitionResponse: definitionResponse.data })
+  logger.debug({ message: req.path, bungieResponse: definitionResponse.data })
 
   return definitionResponse.data
 }

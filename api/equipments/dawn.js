@@ -9,6 +9,8 @@ const router = express.Router()
 const OauthUtility = require('../../utility/oauth/oauth')
 const ErrorCodesEnum = require('../../utility/models/error-codes.enum')
 
+// TODO: add a boolean property for allowing retrieving items from the vault for dawning.
+
 /* POST equipments */
 router.post('/dawn', [
   // validations
@@ -35,9 +37,10 @@ router.post('/dawn', [
     return captureService(req, req.body.membershipType, req.body.membershipId, req.body.characterId).then(captureResponse => {
       logger.debug({ message: `${req.path} - capture`, captureResponse: captureResponse })
 
-      return dawnService(req, req.body).then(clientResponse => {
+      return dawnService(req, req.body, captureResponse).then(clientResponse => {
         logger.debug({ message: `${req.path} - dawn`, clientResponse: clientResponse })
 
+        // TODO: pass a list of items that can be transferred, to the transferItemsService.
         return transferItemsService(req, captureResponse, req.body.characterId, req.body.membershipType).then(transferResponse => {
           logger.debug({ message: `${req.path} - transfer-items`, transferResponse: transferResponse })
 
@@ -70,7 +73,14 @@ router.post('/dawn', [
 
 module.exports = router
 
-async function dawnService (req, body) {
+async function dawnService (req, body, captureResponse) {
+  // TODO: compare itemIds between captureResponse and body
+  // TODO: create a list of itemIds without the matched itemIds from the body.
+  // TODO: place that list into the equipmentsOption.
+
+  // TODO: if the boolean property for allowing equipping from the vault is true
+  // TODO: make a request to check the inventory of the character.
+  //
   // request options
   const equipmentsOption = {
     method: 'POST',
@@ -92,6 +102,10 @@ async function dawnService (req, body) {
     item.equipStatus = ErrorCodesEnum(item.equipStatus, req.path)
   })
 
+  // TODO: return an object returning two properties.
+  // TODO: one property will hold a proper response for the dawnService.
+  // TODO: the second property will hold a list of the itemIds of the equipped items that were not in the req.body
+  // TODO: remove the subclass item since it is not transferrable.
   return clientResponse
 }
 

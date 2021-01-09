@@ -6,7 +6,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const equipmentList = require('./models/equipment-list')
+const equipmentList = require('../../utility/models/equipment-list')
 
 /* GET equipments */
 router.get('/capture', [
@@ -57,17 +57,26 @@ async function captureService (req, membershipType, membershipId, characterId) {
   const transformedResponse = transform(bungieResponse)
 
   // request to define the types of each equipment
-  const definitionResponse = await definitionService(req, transformedResponse)
+  // const definitionResponse = await definitionService(req, transformedResponse)
 
   // place a slotType and name to each item from bungie's response
-  for (const item of transformedResponse.equipment) {
-    for (const slotItem of definitionResponse) {
-      if (item.itemReferenceHash === slotItem.itemReferenceHash) {
-        item.slotType = slotItem.slotType
-        item.name = slotItem.name
-      }
-    }
-  }
+  // for (const item of transformedResponse.equipment) {
+  //   for (const slotItem of definitionResponse) {
+  //     if (item.itemReferenceHash === slotItem.itemReferenceHash) {
+  //       item.slotType = slotItem.slotType
+  //       item.name = slotItem.name
+  //     }
+  //   }
+  // }
+  // for (const item of transformedResponse.equipment) {
+  //   if (item.itemReferenceHash === slotItem.itemReferenceHash) {
+  //     item.slotType = slotItem.slotType
+  //     item.name = slotItem.name
+  //   }
+  // }
+
+  // TODO: call the item definition service to place the equipment slot type
+  // to each weapon to then be filtered out.
 
   // filter out equipment to not capture
   const clientResponse = {}
