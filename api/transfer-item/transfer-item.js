@@ -3,7 +3,7 @@ const jsonata = require('jsonata')
 const { body, validationResult } = require('express-validator')
 const logger = require('../../winston')
 const express = require('express')
-
+const createError = require('http-errors')
 const router = express.Router()
 
 const OauthUtility = require('../../utility/oauth/oauth')
@@ -24,7 +24,8 @@ router.post('/transfer-item', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
@@ -56,7 +57,8 @@ router.post('/transfer-items', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })

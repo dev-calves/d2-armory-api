@@ -2,6 +2,7 @@ const axios = require('axios')
 const jsonata = require('jsonata')
 const { query, validationResult } = require('express-validator')
 const logger = require('../../winston')
+const createError = require('http-errors')
 const ClassEnum = require('./models/class')
 const GenderEnum = require('./models/gender')
 const RaceEnum = require('./models/race')
@@ -22,7 +23,8 @@ router.get('/characters', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })

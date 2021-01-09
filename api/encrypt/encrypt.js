@@ -4,12 +4,13 @@ const express = require('express')
 const router = express.Router()
 const { body, validationResult } = require('express-validator')
 const logger = require('../../winston')
+const createError = require('http-errors')
 
 /* POST encrypt */
 router.post('/encrypt', [
   body('state').notEmpty().withMessage('required parameter')
     .isIn(['inventory', 'vault']).withMessage('state only accepted with \'inventory\' or \'vault\'')
-], (req, res) => {
+], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -17,7 +18,8 @@ router.post('/encrypt', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
@@ -41,7 +43,7 @@ router.post('/encrypt', [
 router.post('/decrypt', [
   body('hex').notEmpty().withMessage('required parameter')
     .isHexadecimal('hex').withMessage('hex property must be a hexidecimal value')
-], (req, res) => {
+], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -49,7 +51,8 @@ router.post('/decrypt', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })

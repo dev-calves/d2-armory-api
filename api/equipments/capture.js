@@ -3,7 +3,7 @@ const jsonata = require('jsonata')
 const { query, validationResult } = require('express-validator')
 const logger = require('../../winston')
 const express = require('express')
-
+const createError = require('http-errors')
 const router = express.Router()
 
 const equipmentList = require('./models/equipment-list')
@@ -22,7 +22,8 @@ router.get('/capture', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
