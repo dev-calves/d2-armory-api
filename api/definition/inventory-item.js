@@ -1,6 +1,6 @@
 const axios = require('axios')
 const jsonata = require('jsonata')
-const { query, validationResult } = require('express-validator')
+const { query, body, validationResult } = require('express-validator')
 const createError = require('http-errors')
 const logger = require('../../winston')
 const express = require('express')
@@ -10,7 +10,7 @@ const router = express.Router()
 /* GET Definition */
 router.get('/inventory-item', [
   // validations
-  query('inventoryHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  query('itemReferenceHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -24,7 +24,7 @@ router.get('/inventory-item', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  return inventoryItemService(req).then(response => {
+  return inventoryItemService(req, req.query.itemReferenceHash).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -34,24 +34,55 @@ router.get('/inventory-item', [
   })
 })
 
+/* POST Definition */
+router.post('/inventory-items', [
+  // validations
+  body('itemReferenceHashes').notEmpty().withMessage('required parameter')
+    .isArray().withMessage('must be in the form of an array'),
+  body('itemReferenceHashes[*]').isString().withMessage('must be a string')
+    .isInt().withMessage('string must only contain an integer')
+], (req, res, next) => {
+  // validation error response
+  const errors = validationResult(req)
+  if (!errors.isEmpty()) {
+    const message = { errors: errors.array() }
+
+    logger.warn({ message: req.path, bad: message })
+
+    return res.status(422).json(message)
+  }
+
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
+
+  const requests = []
+
+  for (const itemReferenceHash of req.body.itemReferenceHashes) {
+    requests.push(inventoryItemService(req, itemReferenceHash))
+  }
+
+  return Promise.all(requests).then(response => {
+    logger.debug({ message: `${req.path} - inventoryItem`, clientResponse: response })
+
+    return res.status(200).json(response)
+  }).catch(error => {
+    next(error.response)
+    return
+  })
+})
+
 module.exports = router
 
-async function inventoryItemService (req) {
+async function inventoryItemService (req, itemReferenceHash) {
   // request options
   const definitionOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyInventoryItemDefinition/${req.query.inventoryHash}`,
+    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemReferenceHash}`,
     headers: {
       'X-API-Key': process.env.API_KEY
     }
   }
 
-  let bungieResponse
-  try {
-    bungieResponse = await request(definitionOption, req)
-  } catch (error) {
-    throw (error.response)
-  }
+  const bungieResponse = await request(definitionOption, req)
 
   // trim content
   const clientResponse = transform(bungieResponse)
@@ -60,6 +91,8 @@ async function inventoryItemService (req) {
   if (Object.keys(clientResponse).length === 0 && clientResponse.constructor === Object) {
     throw createError(500, 'the hash provided does not apply to the given category parameter.')
   }
+
+  clientResponse.itemReferenceHash = itemReferenceHash
 
   return clientResponse
 }
@@ -80,7 +113,7 @@ function transform (definitionResponse) {
           jsonata(`{
             "name": Response.displayProperties.name,
             "maxStackSize": Response.inventory.maxStackSize,
-            "equipmentSlotHash": Response.equippingBlock.equipmentSlotTypeHash
+            "equipmentSlotHash": $string(Response.equippingBlock.equipmentSlotTypeHash)
         }`)
 
   // response transformed
