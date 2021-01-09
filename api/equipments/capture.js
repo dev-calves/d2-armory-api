@@ -6,7 +6,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const equipmentList = require('../../utility/models/equipment-list')
+const equipmentSlotTypes = require('./models/capture-equipment-slot-types')
 
 /* GET equipments */
 router.get('/capture', [
@@ -57,7 +57,12 @@ async function captureService (req, membershipType, membershipId, characterId) {
   const transformedResponse = transform(bungieResponse)
 
   // request to define the types of each equipment
-  // const definitionResponse = await definitionService(req, transformedResponse)
+  const definitionResponse = await definitionService(req, transformedResponse)
+
+  // add slot types taken from definition to the capture response
+  for (const item of transformedResponse.equipment) {
+    item.equipmentSlotHash = definitionResponse.find(definition => definition.itemReferenceHash === item.itemReferenceHash).equipmentSlotHash
+  }
 
   // place a slotType and name to each item from bungie's response
   // for (const item of transformedResponse.equipment) {
@@ -79,18 +84,28 @@ async function captureService (req, membershipType, membershipId, characterId) {
   // to each weapon to then be filtered out.
 
   // filter out equipment to not capture
-  const clientResponse = {}
-  clientResponse.equipment = transformedResponse.equipment.filter(item => equipmentList.includes(item.slotType))
+  // const clientResponse = {}
+  const clientResponse = {
+    equipment: transformedResponse.equipment.filter(item => equipmentSlotTypes.includes(item.equipmentSlotHash))
+  }
 
   return clientResponse
 }
 
 async function definitionService (req, captureResponse) {
+  const definitionData = {
+    itemReferenceHashes: []
+  }
+
+  for (const item of captureResponse.equipment) {
+    definitionData.itemReferenceHashes.push(item.itemReferenceHash)
+  }
+
   // request options
   const definitionOption = {
     method: 'POST',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/equipment-slots`,
-    data: captureResponse
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-items`,
+    data: definitionData
   }
 
   const definitionResponse = await request(definitionOption, req)
