@@ -2,12 +2,12 @@
 
 const logger = require('../../winston')
 
-module.exports = (code, path) => {
+module.exports = (code, req) => {
   if (errorEnum.hasOwnProperty(code)) {
     return errorEnum[code]
   } else {
     // log the errorcode for definition lookup on bungie's site.
-    logger.debug({ message: path, undefinedBungieErrorCode: code })
+    logger.debug({ message: req.path, undefinedBungieErrorCode: code })
 
     return errorEnum[0]
   }

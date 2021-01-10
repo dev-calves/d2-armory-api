@@ -20,23 +20,21 @@ module.exports = function errorHandler (error, req, res, next) {
     if (error.message && error.message.data) {
       message.message = error.message.data
     } else if (error.response && error.response.data) {
-      message.config = error.response.config
       message.message = error.response.data
     } else if (error.response) {
       message.message = error.response
     } else if (error.data) {
       message.message = error.data
-    } else if (error.status === 422 && error.message) {
-      message.config = {
-        path: req.path,
-        method: req.method,
-        query: req.query,
-        body: req.body
-      }
-      message.message = error.message
-      message.errors = error.errors
     } else {
-      message.message = error
+      message.message = error.message
+      message.errors = error.errors || error
+    }
+
+    message.config = {
+      path: req.path,
+      method: req.method,
+      query: req.query,
+      body: req.body
     }
 
     logger.error({ message: req.path, error: message })

@@ -61,30 +61,10 @@ async function captureService (req, membershipType, membershipId, characterId) {
 
   // add slot types taken from definition to the capture response
   for (const item of transformedResponse.equipment) {
-    item.equipmentSlotHash = definitionResponse.find(definition => definition.itemReferenceHash === item.itemReferenceHash).equipmentSlotHash
+    item.equipmentSlotHash = definitionResponse.find(definition => item.itemReferenceHash === definition.itemReferenceHash).equipmentSlotHash
   }
 
-  // place a slotType and name to each item from bungie's response
-  // for (const item of transformedResponse.equipment) {
-  //   for (const slotItem of definitionResponse) {
-  //     if (item.itemReferenceHash === slotItem.itemReferenceHash) {
-  //       item.slotType = slotItem.slotType
-  //       item.name = slotItem.name
-  //     }
-  //   }
-  // }
-  // for (const item of transformedResponse.equipment) {
-  //   if (item.itemReferenceHash === slotItem.itemReferenceHash) {
-  //     item.slotType = slotItem.slotType
-  //     item.name = slotItem.name
-  //   }
-  // }
-
-  // TODO: call the item definition service to place the equipment slot type
-  // to each weapon to then be filtered out.
-
-  // filter out equipment to not capture
-  // const clientResponse = {}
+  // filter out equipment not important to have captured
   const clientResponse = {
     equipment: transformedResponse.equipment.filter(item => equipmentSlotTypes.includes(item.equipmentSlotHash))
   }
@@ -118,7 +98,11 @@ async function request (equipmentsOption, req) {
 
   const equipmentsResponse = await axios(equipmentsOption)
 
-  logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  if (equipmentsOption.url.includes(process.env.SERVER_DOMAIN)) {
+    logger.debug({ message: req.path, definitionResponse: equipmentsResponse.data })
+  } else {
+    logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  }
 
   return equipmentsResponse.data
 }

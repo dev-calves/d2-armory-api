@@ -1,18 +1,18 @@
 module.exports = function oauthHandler (error, req, res, next) {
-  const OAuthUtility = require('../oauth/oauth')
+  const oAuthUtility = require('../oauth/oauth')
   const axios = require('axios')
   const createError = require('http-errors')
   const logger = require('../../winston')
 
   // errors caused by HTTP 401 need a new access token
-  if (error.status === 401 || error.statusCode === 401) {
+  if (error.status === 401 || error.statusCode === 401 || (error.response && error.response.status === 401)) {
     // request for a new token.
     if (req.headers['x-refresh-token']) {
       logger.debug({ message: `${req.path} - oauth-handler`, refresh: req.headers['x-refresh-token'] })
 
       // request new tokens and set them as cookies for future requests.
-      OAuthUtility.oauthRequest(
-        OAuthUtility.refreshBody(req.headers['x-refresh-token']), req, res)
+      oAuthUtility.oauthRequest(
+        oAuthUtility.refreshBody(req.headers['x-refresh-token']), req, res)
         .then(tokenResponse => {
         // take initial client request information
           const options = {
@@ -40,7 +40,7 @@ module.exports = function oauthHandler (error, req, res, next) {
         // log user out if refresh request returns unauthorized
           if (error.status === 401 || error.statusCode === 401) {
           // log user out
-            OAuthUtility.deleteTokens(req, res)
+            oAuthUtility.deleteTokens(req, res)
           }
 
           // move error to the error-handler
