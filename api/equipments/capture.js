@@ -6,7 +6,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const equipmentList = require('./models/equipment-list')
+const equipmentSlotTypes = require('./models/capture-equipment-slot-types')
 
 /* GET equipments */
 router.get('/capture', [
@@ -59,29 +59,33 @@ async function captureService (req, membershipType, membershipId, characterId) {
   // request to define the types of each equipment
   const definitionResponse = await definitionService(req, transformedResponse)
 
-  // place a slotType and name to each item from bungie's response
+  // add slot types taken from definition to the capture response
   for (const item of transformedResponse.equipment) {
-    for (const slotItem of definitionResponse) {
-      if (item.itemReferenceHash === slotItem.itemReferenceHash) {
-        item.slotType = slotItem.slotType
-        item.name = slotItem.name
-      }
-    }
+    item.equipmentSlotHash = definitionResponse.find(definition => item.itemReferenceHash === definition.itemReferenceHash).equipmentSlotHash
   }
 
-  // filter out equipment to not capture
-  const clientResponse = {}
-  clientResponse.equipment = transformedResponse.equipment.filter(item => equipmentList.includes(item.slotType))
+  // filter out equipment not important to have captured
+  const clientResponse = {
+    equipment: transformedResponse.equipment.filter(item => equipmentSlotTypes.includes(item.equipmentSlotHash))
+  }
 
   return clientResponse
 }
 
 async function definitionService (req, captureResponse) {
+  const definitionData = {
+    itemReferenceHashes: []
+  }
+
+  for (const item of captureResponse.equipment) {
+    definitionData.itemReferenceHashes.push(item.itemReferenceHash)
+  }
+
   // request options
   const definitionOption = {
     method: 'POST',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/equipment-slots`,
-    data: captureResponse
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-items`,
+    data: definitionData
   }
 
   const definitionResponse = await request(definitionOption, req)
@@ -94,7 +98,11 @@ async function request (equipmentsOption, req) {
 
   const equipmentsResponse = await axios(equipmentsOption)
 
-  logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  if (equipmentsOption.url.includes(process.env.SERVER_DOMAIN)) {
+    logger.debug({ message: req.path, definitionResponse: equipmentsResponse.data })
+  } else {
+    logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  }
 
   return equipmentsResponse.data
 }

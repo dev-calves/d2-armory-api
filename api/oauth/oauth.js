@@ -1,5 +1,5 @@
 const logger = require('../../winston')
-const OAuthUtility = require('../../utility/oauth/oauth')
+const oAuthUtility = require('../../utility/oauth/oauth')
 const express = require('express')
 
 const router = express.Router()
@@ -8,7 +8,7 @@ router.get('/oauth/access', (req, res, next) => {
   logger.debug({ message: req.path, headers: req.headers, request: req.headers.code })
 
   // request to receive tokens.
-  return OAuthUtility.oauthRequest(OAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
+  return oAuthUtility.oauthRequest(oAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
     // send ok response
     const message = { message: 'tokens recieved.' }
 
@@ -20,7 +20,7 @@ router.get('/oauth/access', (req, res, next) => {
   })
 })
 
-router.get('/oauth/refresh', (req, res, next) => {
+router.get('/oauth/refresh-status', (req, res, next) => {
   let message
 
   if (req.headers['x-refresh-token']) {
@@ -36,7 +36,7 @@ router.get('/oauth/refresh', (req, res, next) => {
 
 router.get('/oauth/delete', (req, res, next) => {
   // delete tokens.
-  OAuthUtility.deleteTokens(req, res)
+  oAuthUtility.deleteTokens(req, res)
 
   // send ok response
   const message = { message: 'tokens deleted.' }

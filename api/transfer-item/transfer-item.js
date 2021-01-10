@@ -6,7 +6,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const OauthUtility = require('../../utility/oauth/oauth')
+const oAuthUtility = require('../../utility/oauth/oauth')
 
 /* POST transfer-item */
 router.post('/transfer-item', [
@@ -44,9 +44,9 @@ router.post('/transfer-item', [
 router.post('/transfer-items', [
   // validations
   body('transferToVault').notEmpty().withMessage('required parameter').isBoolean().withMessage('must be a boolean'),
-  body('items').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array'),
-  body('items.*.itemReferenceHash').notEmpty().withMessage('required parameter'),
-  body('items.*.itemId').notEmpty().withMessage('required parameter'),
+  body('equipment').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array'),
+  body('equipment[*].itemReferenceHash').notEmpty().withMessage('required parameter'),
+  body('equipment[*].itemId').notEmpty().withMessage('required parameter'),
   body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
 ], (req, res, next) => {
@@ -63,13 +63,13 @@ router.post('/transfer-items', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  const listOfTransfers = [] // holds the collective responses from the item transfer api
+  const transfers = [] // holds the collective responses from the item transfer api
 
-  for (const item of req.body.items) {
-    listOfTransfers.push(transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemReferenceHash))
+  for (const item of req.body.equipment) {
+    transfers.push(transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemReferenceHash))
   }
 
-  return Promise.all(listOfTransfers).then(response => {
+  return Promise.all(transfers).then(response => {
     return res.status(200).json(response)
   }).catch(error => {
     next(error)
@@ -87,7 +87,7 @@ async function transferItemService (req, membershipType, characterId, transferTo
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: OauthUtility.authorization(req)
+      Authorization: oAuthUtility.authorization(req)
     },
     data: {
       itemReferenceHash: itemReferenceHash,
@@ -99,17 +99,7 @@ async function transferItemService (req, membershipType, characterId, transferTo
   }
 
   // itemnotfounds are returned as errors by bungie.
-  // TODO: prevent equiped items from being requested for transfers.
-  let bungieResponse
-  try {
-    bungieResponse = await request(transferItemOption, req)
-  } catch (error) {
-    if (error && error.response && error.response.status === 401) {
-      throw (error.response)
-    } else {
-      bungieResponse = error.response.data
-    }
-  }
+  const bungieResponse = await request(transferItemOption, req)
 
   const clientResponse = transform(bungieResponse)
   clientResponse.itemId = itemId

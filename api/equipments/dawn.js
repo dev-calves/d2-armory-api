@@ -6,12 +6,20 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const OauthUtility = require('../../utility/oauth/oauth')
-const ErrorCodesEnum = require('../../utility/models/error-codes.enum')
+const oAuthUtility = require('../../utility/oauth/oauth')
+const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
+const slotTypes = require('../../utility/models/equipment-slot-types')
+
+// TODO: add a boolean property for allowing retrieving items from the vault for dawning.
 
 /* POST equipments */
 router.post('/dawn', [
   // validations
+  body('equipment').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array of string'),
+  body('equipment[*].itemId').isString().withMessage('must be in the form of a string')
+    .isInt().withMessage('must be an integer'),
+  body('equipment[*].equipmentSlotHash').isString().withMessage('must be in the form of a string')
+    .isInt().withMessage('must be an integer'),
   body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   body('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
@@ -33,24 +41,21 @@ router.post('/dawn', [
 
   if (req.body && req.body.transferLocation && req.body.transferLocation === 'vault') {
     return captureService(req, req.body.membershipType, req.body.membershipId, req.body.characterId).then(captureResponse => {
-      logger.debug({ message: `${req.path} - capture`, captureResponse: captureResponse })
+      logger.debug({ message: req.path, captureServiceResponse: captureResponse })
 
-      return dawnService(req, req.body).then(clientResponse => {
-        logger.debug({ message: `${req.path} - dawn`, clientResponse: clientResponse })
+      return dawnService(req, req.body).then(dawnResponse => {
+        logger.debug({ message: req.path, dawnResponse: dawnResponse })
 
         return transferItemsService(req, captureResponse, req.body.characterId, req.body.membershipType).then(transferResponse => {
-          logger.debug({ message: `${req.path} - transfer-items`, transferResponse: transferResponse })
+          logger.debug({ message: req.path, transferServiceResponse: transferResponse })
 
-          clientResponse.transferredItems = transferResponse
+          const clientResponse = {
+            equipmentDawned: dawnResponse,
+            transferredItems: transferResponse
+          }
 
           return res.status(200).json(clientResponse)
-        }).catch(error => {
-          next(error)
-          return
         })
-      }).catch(error => {
-        next(error)
-        return
       })
     }).catch(error => {
       next(error)
@@ -71,6 +76,13 @@ router.post('/dawn', [
 module.exports = router
 
 async function dawnService (req, body) {
+  // TODO: if the boolean property for allowing equipping from the vault is true
+  // TODO: make a request to check the inventory of the character.
+
+  // list the itemIds from the equipment in the body
+  const itemIds = []
+  body.equipment.forEach(item => { itemIds.push(item.itemId) })
+
   // request options
   const equipmentsOption = {
     method: 'POST',
@@ -78,21 +90,35 @@ async function dawnService (req, body) {
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: OauthUtility.authorization(req)
+      Authorization: oAuthUtility.authorization(req)
     },
-    data: body
+    data: {
+      itemIds: itemIds,
+      transferLocation: body.transferLocation,
+      membershipType: body.membershipType,
+      membershipId: body.membershipId,
+      characterId: body.characterId
+    }
   }
 
-  const bungieResponse = await request(equipmentsOption, req)
+  let bungieResponse
 
-  const clientResponse = transform(bungieResponse)
+  let dawnResponse = {
 
-  // replace bungie's integer error code with a message, taken from bungie's platform site.
-  clientResponse.equipment.forEach(item => {
-    item.equipStatus = ErrorCodesEnum(item.equipStatus, req.path)
-  })
+  }
 
-  return clientResponse
+  if (body.equipment.length > 0) {
+    bungieResponse = await request(equipmentsOption, req)
+
+    dawnResponse = transform(bungieResponse)
+
+    // replace bungie's integer error code with a message, taken from bungie's platform site.
+    dawnResponse.equipment.forEach(item => {
+      item.equipStatus = ErrorCodesEnum(item.equipStatus, req)
+    })
+  }
+
+  return dawnResponse
 }
 
 async function captureService (req, membershipType, membershipId, characterId) {
@@ -104,34 +130,58 @@ async function captureService (req, membershipType, membershipId, characterId) {
 
   const captureResponse = await request(captureOption, req)
 
+  // filter out already equipped items from the dawn request.
+  req.body.equipment = req.body.equipment.filter(dawnEquipmentItem =>
+    !captureResponse.equipment.find(captureEquipmentItem =>
+      dawnEquipmentItem.itemId === captureEquipmentItem.itemId))
+
   return captureResponse
 }
 
 async function transferItemsService (req, captureResponse, characterId, membershipType) {
-  // request options
-  const transferItemsOption = {
-    method: 'POST',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/transfer-items`,
-    headers: req.headers,
-    data: {
-      transferToVault: true,
-      items: captureResponse.equipment,
-      characterId: characterId,
-      membershipType: membershipType
-    }
+  // filter out subclass items and filters in items that were unequipped by the dawn request
+  const transferableEquipment = captureResponse.equipment.filter(captureItem =>
+    captureItem.equipmentSlotHash !== slotTypes.SUBCLASS && req.body.equipment.some(dawnItem =>
+      captureItem.equipmentSlotHash === dawnItem.equipmentSlotHash))
+
+  let transferResponse = {
+
   }
 
-  const transferResponse = await request(transferItemsOption, req)
+  if (transferableEquipment.length > 0) {
+    // request options
+    const transferItemsOption = {
+      method: 'POST',
+      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/transfer-items`,
+      headers: req.headers,
+      data: {
+        transferToVault: true,
+        equipment: transferableEquipment,
+        characterId: characterId,
+        membershipType: membershipType
+      }
+    }
+
+    transferResponse = await request(transferItemsOption, req)
+  }
 
   return transferResponse
 }
 
-async function request (equipmentsOption, req) {
-  logger.debug({ message: req.path, options: equipmentsOption })
+async function request (equipmentOption, req) {
+  logger.debug({ message: req.path, options: equipmentOption })
 
-  const equipmentsResponse = await axios(equipmentsOption)
+  const equipmentsResponse = await axios(equipmentOption)
 
-  logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  if (equipmentOption.url.includes(process.env.SERVER_DOMAIN)) {
+    if (equipmentOption.url.includes('/transfer-items')) {
+      logger.debug({ message: req.path, transferItemsResponse: equipmentsResponse.data })
+    } else if (equipmentOption.url.includes('/capture')) {
+      logger.debug({ message: req.path, captureResponse: equipmentsResponse.data })
+    }
+  } else {
+    logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
+  }
 
   return equipmentsResponse.data
 }
@@ -139,12 +189,14 @@ async function request (equipmentsOption, req) {
 function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`
+  {
+    "equipment": Response.equipResults.[
         {
-          "equipment": Response.equipResults.{
-              "itemId": itemInstanceId,
-              "equipStatus": equipStatus
-          }
-        }`)
+            "itemId": itemInstanceId,
+            "equipStatus": equipStatus
+        }
+    ]
+  }`)
 
   // response transformed
   const response = expression.evaluate(bungieResponse)

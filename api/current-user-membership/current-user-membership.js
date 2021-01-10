@@ -1,7 +1,7 @@
 const axios = require('axios')
 const jsonata = require('jsonata')
 const express = require('express')
-const OAuthUtility = require('../../utility/oauth/oauth')
+const oAuthUtility = require('../../utility/oauth/oauth')
 const logger = require('../../winston')
 const router = express.Router()
 
@@ -23,7 +23,7 @@ async function currentUserMembershipService (req, res, next) {
   const requestOptions = {
     headers: {
       'X-API-Key': process.env.API_KEY,
-      Authorization: OAuthUtility.authorization(req, res)
+      Authorization: oAuthUtility.authorization(req, res)
     }
   }
 
