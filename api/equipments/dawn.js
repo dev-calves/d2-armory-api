@@ -37,77 +37,59 @@ router.post('/dawn', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  // when the transferLocation is set to vault, make transfers to and from the vault when equipping items
-  if (req.body && req.body.transferLocation && req.body.transferLocation === 'vault') {
-    return captureService(req, req.body.membershipType, req.body.membershipId, req.body.characterId).then(captureResponse => {
-      logger.debug({ message: req.path, captureServiceResponse: captureResponse })
+  return dawnService(req, req.body, req.body.membershipType, req.body.membershipId, req.body.characterId).then(dawnResponse => {
+    logger.debug({ message: req.path, dawnResponse: dawnResponse })
 
-      return dawnService(req, req.body).then(dawnResponse => {
-        logger.debug({ message: req.path, dawnResponse: dawnResponse })
-
-        return transferItemsService(req, captureResponse, req.body.characterId, req.body.membershipType).then(transferResponse => {
-          logger.debug({ message: req.path, transferServiceResponse: transferResponse })
-
-          const clientResponse = {
-            equipmentDawned: dawnResponse,
-            transferredItems: transferResponse
-          }
-
-          return res.status(200).json(clientResponse)
-        })
-      })
-    }).catch(error => {
-      next(error)
-      return
-    })
-  // use just the dawn service if the transferLocation is set to inventory
-  } else {
-    return dawnService(req, req.body).then(response => {
-      logger.debug({ message: req.path, clientResponse: response })
-
-      return res.status(200).json(response)
-    }).catch(error => {
-      next(error)
-      return
-    })
-  }
+    return res.status(200).json(dawnResponse)
+  }).catch(error => {
+    next(error)
+    return
+  })
 })
 
 module.exports = router
 
-async function dawnService (req, body) {
+async function dawnService (req, body, membershipType, membershipId, characterId) {
+  // retrieve current equipment info.
+  const captureResponse = await captureService(req, membershipType, membershipId, characterId)
+
+  // filter out capture response items out of the dawn request.
+  const filteredRequestEquipment = body.equipment.filter(dawnEquipmentItem =>
+    !captureResponse.equipment.find(captureEquipmentItem =>
+      dawnEquipmentItem.itemId === captureEquipmentItem.itemId))
+
   // TODO: if the boolean property for allowing equipping from the vault is true
   // TODO: make a request to check the inventory of the character.
 
-  // list the itemIds from the equipment in the body
+  // list the itemIds from each equipment in the body
   const itemIds = []
-  body.equipment.forEach(item => { itemIds.push(item.itemId) })
-
-  // request options
-  const equipmentsOption = {
-    method: 'POST',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/EquipItems`,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': process.env.API_KEY,
-      Authorization: oAuthUtility.authorization(req)
-    },
-    data: {
-      itemIds: itemIds,
-      transferLocation: body.transferLocation,
-      membershipType: body.membershipType,
-      membershipId: body.membershipId,
-      characterId: body.characterId
-    }
+  if (filteredRequestEquipment.length > 0) {
+    filteredRequestEquipment.forEach(item => { itemIds.push(item.itemId) })
   }
 
+  const clientResponse = {}
   let bungieResponse
+  let dawnResponse = {}
 
-  let dawnResponse = {
+  if (itemIds.length > 0) {
+    // request options
+    const equipmentsOption = {
+      method: 'POST',
+      url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/EquipItems`,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': process.env.API_KEY,
+        Authorization: oAuthUtility.authorization(req)
+      },
+      data: {
+        itemIds: itemIds,
+        transferLocation: body.transferLocation,
+        membershipType: body.membershipType,
+        membershipId: body.membershipId,
+        characterId: body.characterId
+      }
+    }
 
-  }
-
-  if (body.equipment.length > 0) {
     bungieResponse = await request(equipmentsOption, req)
 
     dawnResponse = transform(bungieResponse)
@@ -116,9 +98,19 @@ async function dawnService (req, body) {
     dawnResponse.equipment.forEach(item => {
       item.equipStatus = ErrorCodesEnum(item.equipStatus, req)
     })
+
+    clientResponse.equipmentDawned = dawnResponse
   }
 
-  return dawnResponse
+  // if transferLocation is set to 'vault', transfer unequipped items to the vault
+  if (clientResponse.equipmentDawned && body && body.transferLocation === 'vault') {
+    const transferResponse = await transferItemsService(req, captureResponse, filteredRequestEquipment, membershipType, characterId)
+
+    clientResponse.transferredItems = transferResponse
+  }
+
+  // response
+  return clientResponse
 }
 
 async function captureService (req, membershipType, membershipId, characterId) {
@@ -130,18 +122,14 @@ async function captureService (req, membershipType, membershipId, characterId) {
 
   const captureResponse = await request(captureOption, req)
 
-  // filter out already equipped items from the dawn request.
-  req.body.equipment = req.body.equipment.filter(dawnEquipmentItem =>
-    !captureResponse.equipment.find(captureEquipmentItem =>
-      dawnEquipmentItem.itemId === captureEquipmentItem.itemId))
-
   return captureResponse
 }
 
-async function transferItemsService (req, captureResponse, characterId, membershipType) {
-  // filter out subclass items and filters in items that were unequipped by the dawn request
+async function transferItemsService (req, captureResponse, filteredRequestEquipment, membershipType, characterId) {
+  // filters out the subclass item and filters in items that were unequipped by the dawn request
+  // the subclass item cannot be sent to the vault.
   const transferableEquipment = captureResponse.equipment.filter(captureItem =>
-    captureItem.equipmentSlotHash !== slotTypes.SUBCLASS && req.body.equipment.some(dawnItem =>
+    captureItem.equipmentSlotHash !== slotTypes.SUBCLASS && filteredRequestEquipment.some(dawnItem =>
       captureItem.equipmentSlotHash === dawnItem.equipmentSlotHash))
 
   let transferResponse = {
