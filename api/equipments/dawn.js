@@ -10,8 +10,6 @@ const oAuthUtility = require('../../utility/oauth/oauth')
 const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
 const slotTypes = require('../../utility/models/equipment-slot-types')
 
-// TODO: add a boolean property for allowing retrieving items from the vault for dawning.
-
 /* POST equipments */
 router.post('/dawn', [
   // validations
@@ -39,6 +37,7 @@ router.post('/dawn', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
+  // when the transferLocation is set to vault, make transfers to and from the vault when equipping items
   if (req.body && req.body.transferLocation && req.body.transferLocation === 'vault') {
     return captureService(req, req.body.membershipType, req.body.membershipId, req.body.characterId).then(captureResponse => {
       logger.debug({ message: req.path, captureServiceResponse: captureResponse })
@@ -61,6 +60,7 @@ router.post('/dawn', [
       next(error)
       return
     })
+  // use just the dawn service if the transferLocation is set to inventory
   } else {
     return dawnService(req, req.body).then(response => {
       logger.debug({ message: req.path, clientResponse: response })
