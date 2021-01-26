@@ -178,7 +178,7 @@ function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`
   {
-    "equipment": Response.equipResults.[
+    "equipment": [Response.equipResults.
         {
             "itemId": itemInstanceId,
             "equipStatus": equipStatus

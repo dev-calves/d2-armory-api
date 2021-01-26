@@ -27,6 +27,7 @@ const oauthController = require('./api/oauth/oauth')
 const equipmentsController = require('./api/equipments/equipments')
 const definitionController = require('./api/definition/definition')
 const transferItemController = require('./api/transfer-item/transfer-item')
+const inventoryController = require('./api/inventory/inventory')
 
 // create express app
 const app = express()
@@ -54,7 +55,8 @@ app.use('/api',
   oauthController,
   equipmentsController,
   definitionController,
-  transferItemController
+  transferItemController,
+  inventoryController
 )
 app.get('/ngsw-worker.js', workerRouter) // provides a route for the angular service worker.
 app.use('/*', indexRouter)

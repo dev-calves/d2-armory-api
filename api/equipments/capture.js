@@ -111,10 +111,10 @@ function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`
             {
-              "equipment": Response.equipment.data.items.{
+              "equipment": Response.equipment.data.items.[{
                 "itemId": itemInstanceId,
                 "itemReferenceHash": $string(itemHash)
-              }
+              }]
             }`)
 
   // response transformed
