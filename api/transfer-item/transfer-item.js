@@ -11,7 +11,7 @@ const oAuthUtility = require('../../utility/oauth/oauth')
 /* POST transfer-item */
 router.post('/transfer-item', [
   // validations
-  body('itemReferenceHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
+  body('itemHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   body('transferToVault').notEmpty().withMessage('required parameter').isBoolean().withMessage('must be a boolean'),
   body('itemId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
@@ -30,7 +30,7 @@ router.post('/transfer-item', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemReferenceHash).then(response => {
+  return transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemHash).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -45,7 +45,7 @@ router.post('/transfer-items', [
   // validations
   body('transferToVault').notEmpty().withMessage('required parameter').isBoolean().withMessage('must be a boolean'),
   body('equipment').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array'),
-  body('equipment[*].itemReferenceHash').notEmpty().withMessage('required parameter'),
+  body('equipment[*].itemHash').notEmpty().withMessage('required parameter'),
   body('equipment[*].itemId').notEmpty().withMessage('required parameter'),
   body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
   body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
@@ -66,7 +66,7 @@ router.post('/transfer-items', [
   const transfers = [] // holds the collective responses from the item transfer api
 
   for (const item of req.body.equipment) {
-    transfers.push(transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemReferenceHash))
+    transfers.push(transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemHash))
   }
 
   return Promise.all(transfers).then(response => {
@@ -79,7 +79,7 @@ router.post('/transfer-items', [
 
 module.exports = router
 
-async function transferItemService (req, membershipType, characterId, transferToVault, itemId, itemReferenceHash) {
+async function transferItemService (req, membershipType, characterId, transferToVault, itemId, itemHash) {
   // request options
   const transferItemOption = {
     method: 'POST',
@@ -90,7 +90,7 @@ async function transferItemService (req, membershipType, characterId, transferTo
       Authorization: oAuthUtility.authorization(req)
     },
     data: {
-      itemReferenceHash: itemReferenceHash,
+      itemHash: itemHash,
       itemId: itemId,
       transferToVault: transferToVault,
       characterId: characterId,

@@ -61,7 +61,7 @@ async function captureService (req, membershipType, membershipId, characterId) {
 
   // add slot types taken from definition to the capture response
   for (const item of transformedResponse.equipment) {
-    item.equipmentSlotHash = definitionResponse.find(definition => item.itemReferenceHash === definition.itemReferenceHash).equipmentSlotHash
+    item.equipmentSlotHash = definitionResponse.find(definition => item.itemHash === definition.itemHash).equipmentSlotHash
   }
 
   // filter out equipment not important to have captured
@@ -74,12 +74,14 @@ async function captureService (req, membershipType, membershipId, characterId) {
 
 async function definitionService (req, captureResponse) {
   const definitionData = {
-    itemReferenceHashes: []
+    itemHashes: []
   }
 
-  for (const item of captureResponse.equipment) {
-    definitionData.itemReferenceHashes.push(item.itemReferenceHash)
-  }
+  // for (const item of captureResponse.equipment) {
+  //   definitionData.itemHashes.push(item.itemHash)
+  // }
+
+  definitionData.itemHashes = captureResponse.equipment.map(item => item.itemHash)
 
   // request options
   const definitionOption = {
@@ -111,10 +113,10 @@ function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`
             {
-              "equipment": Response.equipment.data.items.[{
+              "equipment": Response.equipment.data.items.{
                 "itemId": itemInstanceId,
-                "itemReferenceHash": $string(itemHash)
-              }]
+                "itemHash": $string(itemHash)
+              }
             }`)
 
   // response transformed

@@ -148,7 +148,7 @@ function transform (bungieResponse) {
             ]
         }
     }
-    }`)
+  }`)
 
   // response transformed
   const response = expression.evaluate(bungieResponse)

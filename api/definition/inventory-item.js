@@ -10,7 +10,7 @@ const router = express.Router()
 /* GET Definition */
 router.get('/inventory-item', [
   // validations
-  query('itemReferenceHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  query('itemHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -25,7 +25,7 @@ router.get('/inventory-item', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  return inventoryItemService(req, req.query.itemReferenceHash).then(response => {
+  return inventoryItemService(req, req.query.itemHash).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -38,9 +38,9 @@ router.get('/inventory-item', [
 /* POST Definition */
 router.post('/inventory-items', [
   // validations
-  body('itemReferenceHashes').notEmpty().withMessage('required parameter')
+  body('itemHashes').notEmpty().withMessage('required parameter')
     .isArray().withMessage('must be an array'),
-  body('itemReferenceHashes[*]').isString().withMessage('must be a string')
+  body('itemHashes[*]').isString().withMessage('must be a string')
     .isInt().withMessage('string must only contain an integer')
 ], (req, res, next) => {
   // validation error response
@@ -58,8 +58,8 @@ router.post('/inventory-items', [
 
   const requests = []
 
-  for (const itemReferenceHash of req.body.itemReferenceHashes) {
-    requests.push(inventoryItemService(req, itemReferenceHash))
+  for (const itemHash of req.body.itemHashes) {
+    requests.push(inventoryItemService(req, itemHash))
   }
 
   return Promise.all(requests).then(response => {
@@ -74,11 +74,11 @@ router.post('/inventory-items', [
 
 module.exports = router
 
-async function inventoryItemService (req, itemReferenceHash) {
+async function inventoryItemService (req, itemHash) {
   // request options
   const definitionOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemReferenceHash}`,
+    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}`,
     headers: {
       'X-API-Key': process.env.API_KEY
     }
@@ -94,7 +94,7 @@ async function inventoryItemService (req, itemReferenceHash) {
     throw createError(500, 'the hash provided does not apply to the given category parameter.')
   }
 
-  clientResponse.itemReferenceHash = itemReferenceHash
+  clientResponse.itemHash = itemHash
 
   return clientResponse
 }

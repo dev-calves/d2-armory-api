@@ -11,14 +11,14 @@ const router = express.Router()
 router.get('/equipment-slot', [
   // validations
   query().custom((value, { req }) => {
-    if (!req.query.itemReferenceHash && !req.query.equipmentSlotHash) {
-      throw new Error('either \'itemReferenceHash\' or \'equipmentSlotHash\' must be provided')
+    if (!req.query.itemHash && !req.query.equipmentSlotHash) {
+      throw new Error('either \'itemHash\' or \'equipmentSlotHash\' must be provided')
     }
     return true
   }),
-  query('itemReferenceHash').optional().isInt().withMessage('must be an int'),
+  query('itemHash').optional().isInt().withMessage('must be an int'),
   query('equipmentSlotHash').optional().isInt().withMessage('must be an integer').custom((value, { req }) => {
-    if (value && req.query.itemReferenceHash) {
+    if (value && req.query.itemHash) {
       throw new Error('must be omitted if an inventoryHash is provided')
     } else {
       return true
@@ -38,11 +38,11 @@ router.get('/equipment-slot', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  if (req.query.itemReferenceHash) {
+  if (req.query.itemHash) {
     return inventoryItemService(req).then(inventoryItemResponse => {
       logger.debug({ message: `${req.path} - inventoryItem`, clientResponse: inventoryItemResponse })
 
-      return equipmentSlotService(req, inventoryItemResponse.equipmentSlotHash, req.query.itemReferenceHash, inventoryItemResponse.name).then(equipmentSlotResponse => {
+      return equipmentSlotService(req, inventoryItemResponse.equipmentSlotHash, req.query.itemHash, inventoryItemResponse.name).then(equipmentSlotResponse => {
         logger.debug({ message: `${req.path} - equipmentSlot`, clientResponse: equipmentSlotResponse })
 
         return res.status(200).json(equipmentSlotResponse)
@@ -66,9 +66,9 @@ router.get('/equipment-slot', [
 /* POST Definition */
 router.post('/equipment-slots', [
   // validations
-  body('itemReferenceHashes').notEmpty().withMessage('required parameter')
+  body('itemHashes').notEmpty().withMessage('required parameter')
     .isArray().withMessage('must be in the form of an array'),
-  body('itemReferenceHashes[*]').isString().withMessage('must be a string')
+  body('itemHashes[*]').isString().withMessage('must be a string')
     .isInt().withMessage('string must only contain an integer')
 ], (req, res, next) => {
   // validation error response
@@ -88,7 +88,7 @@ router.post('/equipment-slots', [
     const requests = []
 
     for (const item of inventoryItemResponse) {
-      requests.push(equipmentSlotService(req, item.equipmentSlotHash, item.itemReferenceHash, item.name))
+      requests.push(equipmentSlotService(req, item.equipmentSlotHash, item.itemHash, item.name))
     }
 
     Promise.all(requests).then(response => {
@@ -102,7 +102,7 @@ router.post('/equipment-slots', [
 
 module.exports = router
 
-async function equipmentSlotService (req, equipmentSlotHash, itemReferenceHash, itemName) {
+async function equipmentSlotService (req, equipmentSlotHash, itemHash, itemName) {
   const equipmentSlotDefinitionOption = {
     method: 'GET',
     url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyEquipmentSlotDefinition/${equipmentSlotHash}`,
@@ -121,21 +121,21 @@ async function equipmentSlotService (req, equipmentSlotHash, itemReferenceHash, 
     throw createError(500, 'the hash provided does not apply to the given category parameter.')
   }
 
-  clientResponse.itemReferenceHash = itemReferenceHash || undefined
+  clientResponse.itemHash = itemHash || undefined
   clientResponse.name = itemName || undefined
   clientResponse.equipmentSlotHash = equipmentSlotHash || undefined
 
   return clientResponse
 }
 
-async function inventoryItemService (req, itemReferenceHashes) {
+async function inventoryItemService (req, itemHashes) {
   // request options
   let inventoryItemOption = {}
 
   if (req.method.toUpperCase() === 'GET') {
     inventoryItemOption = {
       method: 'GET',
-      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?itemReferenceHash=${req.query.itemReferenceHash}`
+      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?itemHash=${req.query.itemHash}`
     }
   } else if (req.method.toUpperCase() === 'POST') {
     inventoryItemOption = {

@@ -13,15 +13,36 @@ const slotTypes = require('../../utility/models/equipment-slot-types')
 /* POST equipments */
 router.post('/dawn', [
   // validations
-  body('equipment').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array of string'),
-  body('equipment[*].itemId').isString().withMessage('must be in the form of a string')
+  body('equipment').notEmpty().withMessage('required parameter')
+    .isArray()
+    .withMessage('must be an array of string'),
+  body('equipment[*].itemId')
+    .isString()
+    .withMessage('must be in the form of a string')
     .isInt().withMessage('must be an integer'),
-  body('equipment[*].equipmentSlotHash').isString().withMessage('must be in the form of a string')
-    .isInt().withMessage('must be an integer'),
-  body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('transferLocation').optional().isIn(['inventory', 'vault']).withMessage('optional parameter. If declared, must be either \'vault\', \'inventory\'')
+  body('equipment[*].equipmentSlotHash')
+    .isString()
+    .withMessage('must be in the form of a string')
+    .isInt()
+    .withMessage('must be an integer'),
+  body('membershipType')
+    .notEmpty()
+    .withMessage('required parameter')
+    .isInt()
+    .withMessage('must be an integer'),
+  body('membershipId')
+    .notEmpty()
+    .withMessage('required parameter')
+    .isInt()
+    .withMessage('must be an integer'),
+  body('characterId')
+    .notEmpty()
+    .withMessage('required parameter')
+    .isInt()
+    .withMessage('must be an integer'),
+  body('transferLocation').optional()
+    .isIn(['inventory', 'vault'])
+    .withMessage('optional parameter. If declared, must be either \'vault\', \'inventory\'')
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -37,80 +58,108 @@ router.post('/dawn', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return dawnService(req, req.body, req.body.membershipType, req.body.membershipId, req.body.characterId).then(dawnResponse => {
-    logger.debug({ message: req.path, dawnResponse: dawnResponse })
+  return dawnService(req, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation)
+    .then(dawnResponse => {
+      logger.debug({ message: req.path, dawnResponse: dawnResponse })
 
-    return res.status(200).json(dawnResponse)
-  }).catch(error => {
-    next(error)
-    return
-  })
+      return res.status(200).json(dawnResponse)
+    }).catch(error => {
+      next(error)
+      return
+    })
 })
 
 module.exports = router
 
-async function dawnService (req, body, membershipType, membershipId, characterId) {
+async function dawnService (req, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
   // retrieve current equipment info.
   const captureResponse = await captureService(req, membershipType, membershipId, characterId)
 
   // filter out capture response items out of the dawn request.
-  const filteredRequestEquipment = body.equipment.filter(dawnEquipmentItem =>
+  const filteredRequestEquipment = dawnEquipment.filter(dawnEquipmentItem =>
     !captureResponse.equipment.find(captureEquipmentItem =>
       dawnEquipmentItem.itemId === captureEquipmentItem.itemId))
+
+  if (transferLocation === 'vault') {
+    const vaultEquipment = (await vaultService(req, membershipType, membershipId)).vault.equipment
+    const vaultTransferrables = []
+
+    return {}// vaultEquipment
+
+    // dawnEquipment.forEach(dawnEquip => {
+    //   if (true) {
+
+    //   }
+    // })
+  }
 
   // TODO: if the boolean property for allowing equipping from the vault is true
   // TODO: make a request to check the inventory of the character.
 
   // list the itemIds from each equipment in the body
-  const itemIds = []
-  if (filteredRequestEquipment.length > 0) {
-    filteredRequestEquipment.forEach(item => { itemIds.push(item.itemId) })
-  }
+  // const itemIds = []
+  // if (filteredRequestEquipment.length > 0) {
+  //   filteredRequestEquipment.forEach(item => { itemIds.push(item.itemId) })
+  // }
+
+  // const itemIds = filteredRequestEquipment.map(item => item.itemId)
 
   const clientResponse = {}
-  let bungieResponse
-  let dawnResponse = {}
+  // let bungieResponse
+  // let dawnResponse = {}
 
-  if (itemIds.length > 0) {
-    // request options
-    const equipmentsOption = {
-      method: 'POST',
-      url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/EquipItems`,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': process.env.API_KEY,
-        Authorization: oAuthUtility.authorization(req)
-      },
-      data: {
-        itemIds: itemIds,
-        transferLocation: body.transferLocation,
-        membershipType: body.membershipType,
-        membershipId: body.membershipId,
-        characterId: body.characterId
-      }
-    }
+  // if (itemIds.length > 0) {
+  //   // request options
+  //   const equipmentsOption = {
+  //     method: 'POST',
+  //     url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/EquipItems`,
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       'X-API-Key': process.env.API_KEY,
+  //       Authorization: oAuthUtility.authorization(req)
+  //     },
+  //     data: {
+  //       itemIds: itemIds,
+  //       transferLocation: transferLocation,
+  //       membershipType: membershipType,
+  //       membershipId: membershipId,
+  //       characterId: characterId
+  //     }
+  //   }
 
-    bungieResponse = await request(equipmentsOption, req)
+  // bungieResponse = await request(equipmentsOption, req)
 
-    dawnResponse = transform(bungieResponse)
+  // dawnResponse = transform(bungieResponse)
 
-    // replace bungie's integer error code with a message, taken from bungie's platform site.
-    dawnResponse.equipment.forEach(item => {
-      item.equipStatus = ErrorCodesEnum(item.equipStatus, req)
-    })
+  // replace bungie's integer error code with a message, taken from bungie's platform site.
+  // dawnResponse.equipment.forEach(item => {
+  //   item.equipStatus = ErrorCodesEnum(item.equipStatus, req)
+  // })
 
-    clientResponse.equipmentDawned = dawnResponse
-  }
+  // clientResponse.equipmentDawned = dawnResponse
+  // }
 
   // if transferLocation is set to 'vault', transfer unequipped items to the vault
-  if (clientResponse.equipmentDawned && body && body.transferLocation === 'vault') {
-    const transferResponse = await transferItemsService(req, captureResponse, filteredRequestEquipment, membershipType, characterId)
+  // if (clientResponse.equipmentDawned && transferLocation === 'vault') {
+  //   const transferResponse = await transferItemsService(req, captureResponse, filteredRequestEquipment, membershipType, characterId)
 
-    clientResponse.transferredItems = transferResponse
-  }
+  //   clientResponse.transferredItems = transferResponse
+  // }
 
   // response
   return clientResponse
+}
+
+async function vaultService (req, membershipType, membershipId) {
+  // request options
+  const vaultOption = {
+    method: 'GET',
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/inventory/vault?membershipType=${membershipType}&membershipId=${membershipId}`
+  }
+
+  const vaultResponse = await request(vaultOption, req)
+
+  return vaultResponse
 }
 
 async function captureService (req, membershipType, membershipId, characterId) {
