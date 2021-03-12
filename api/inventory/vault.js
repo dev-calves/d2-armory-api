@@ -1,19 +1,20 @@
 const axios = require('axios')
 const jsonata = require('jsonata')
-const { query, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
 const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
 const oAuthUtility = require('../../utility/oauth/oauth')
-const bucketHash = require('../../utility/models/bucket-hash')
+const validations = require('../../utility/validations/query')
+const jsonataModels = require('../../utility/models/jsonata')
 
 /* GET vault */
 router.get('/vault', [
   // validations
-  query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  validations.membershipId,
+  validations.membershipType
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -73,15 +74,9 @@ function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`
         {
-            "vault": {
-                "equipment": Response.profileInventory.data.items[bucketHash=${bucketHash.GENERAL}].
-                    {
-                        "itemHash": itemHash,
-                        "itemInstanceId": itemInstanceId,
-                        "bucketHash": bucketHash
-                    }
-            }
-        }`)
+            "vault": ${jsonataModels.vault}
+        }`
+  )
 
   // response transformed
   const response = expression.evaluate(bungieResponse)

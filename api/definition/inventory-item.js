@@ -113,6 +113,7 @@ function transform (definitionResponse) {
   // expression for transforming the response
   const expression =
           jsonata(`{
+            "itemHash": Response.hash,
             "name": Response.displayProperties.name,
             "maxStackSize": Response.inventory.maxStackSize,
             "equipmentSlotHash": $string(Response.equippingBlock.equipmentSlotTypeHash)

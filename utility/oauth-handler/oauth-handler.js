@@ -5,7 +5,10 @@ module.exports = function oauthHandler (error, req, res, next) {
   const logger = require('../../winston')
 
   // errors caused by HTTP 401 need a new access token
-  if (error.status === 401 || error.statusCode === 401 || (error.response && error.response.status === 401)) {
+  if (error && (error.status === 401 || error.statusCode === 401 || (error.response && error.response.status === 401))) {
+    if (req && req.headers['x-refresh-token'] && req.headers['x-refresh-token'].includes('null')) {
+      next(createError(500, 'nested requests are not receiving tokens'))
+    } else
     // request for a new token.
     if (req.headers['x-refresh-token']) {
       logger.debug({ message: `${req.path} - oauth-handler`, refresh: req.headers['x-refresh-token'] })
@@ -14,10 +17,13 @@ module.exports = function oauthHandler (error, req, res, next) {
       oAuthUtility.oauthRequest(
         oAuthUtility.refreshBody(req.headers['x-refresh-token']), req, res)
         .then(tokenResponse => {
-        // take initial client request information
+          // prevent 401 error request loops when not passing token into the headers of nested requests.
+          req.headers['x-refresh-token'] = null
+
+          // take initial client request information
           const options = {
             baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}`,
-            url: req.path,
+            url: req.url,
             method: req.method,
             headers: req.headers,
             params: req.params,

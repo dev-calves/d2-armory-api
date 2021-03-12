@@ -1,48 +1,24 @@
 const axios = require('axios')
 const jsonata = require('jsonata')
-const { body, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
 const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const oAuthUtility = require('../../utility/oauth/oauth')
-const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
+// const oAuthUtility = require('../../utility/oauth/oauth')
+// const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
 const slotTypes = require('../../utility/models/equipment-slot-types')
+const validations = require('../../utility/validations/body')
 
 /* POST equipments */
 router.post('/dawn', [
   // validations
-  body('equipment').notEmpty().withMessage('required parameter')
-    .isArray()
-    .withMessage('must be an array of string'),
-  body('equipment[*].itemId')
-    .isString()
-    .withMessage('must be in the form of a string')
-    .isInt().withMessage('must be an integer'),
-  body('equipment[*].equipmentSlotHash')
-    .isString()
-    .withMessage('must be in the form of a string')
-    .isInt()
-    .withMessage('must be an integer'),
-  body('membershipType')
-    .notEmpty()
-    .withMessage('required parameter')
-    .isInt()
-    .withMessage('must be an integer'),
-  body('membershipId')
-    .notEmpty()
-    .withMessage('required parameter')
-    .isInt()
-    .withMessage('must be an integer'),
-  body('characterId')
-    .notEmpty()
-    .withMessage('required parameter')
-    .isInt()
-    .withMessage('must be an integer'),
-  body('transferLocation').optional()
-    .isIn(['inventory', 'vault'])
-    .withMessage('optional parameter. If declared, must be either \'vault\', \'inventory\'')
+  validations.equipment,
+  validations.membershipType,
+  validations.membershipId,
+  validations.characterId,
+  validations.transferLocation
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -58,7 +34,8 @@ router.post('/dawn', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return dawnService(req, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation)
+  /* TODO: remove res from this function call. It is just here for testing oauth refresh. */
+  return dawnService(req, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation, res)
     .then(dawnResponse => {
       logger.debug({ message: req.path, dawnResponse: dawnResponse })
 
@@ -71,90 +48,115 @@ router.post('/dawn', [
 
 module.exports = router
 
-async function dawnService (req, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
+/* TODO: remove res, just here for testing */
+async function dawnService (req, dawnEquipment, membershipType, membershipId, characterId, transferLocation, res) {
   // retrieve current equipment info.
   const captureResponse = await captureService(req, membershipType, membershipId, characterId)
 
   // filter out capture response items out of the dawn request.
-  const filteredRequestEquipment = dawnEquipment.filter(dawnEquipmentItem =>
-    !captureResponse.equipment.find(captureEquipmentItem =>
-      dawnEquipmentItem.itemId === captureEquipmentItem.itemId))
+  const filteredDawnEquipment = Object.assign({}, dawnEquipment)
+
+  for (const equipmentSlot in dawnEquipment) {
+    if (captureResponse.equipment[equipmentSlot].length === 1) { // it is possible to have no equipment on for a slot
+      // validators check for atleast one element so we can guarantee element 0 exists for dawn equipment.
+      const dawnItemHash = dawnEquipment[equipmentSlot][0].itemHash
+      const dawnItemInstanceId = dawnEquipment[equipmentSlot][0].itemInstanceId
+      const captureItemHash = captureResponse.equipment[equipmentSlot][0].itemHash
+      const captureItemInstanceId = captureResponse.equipment[equipmentSlot][0].itemInstanceId
+
+      // filter matching equipment based on itemHash and instanceId
+      if (dawnItemHash === captureItemHash && dawnItemInstanceId === captureItemInstanceId) {
+        delete filteredDawnEquipment[equipmentSlot]
+      }
+    }
+  }
+
+  // check the character's inventory to see if they are carrying the dawn request equipment.
+  const characterInventory = await characterInventoryService(req, membershipType, membershipId, characterId)
+
+  const stowedDawnEquipment = {}
+  const vaultEquipment = {}
+
+  for (const equipmentSlot in filteredDawnEquipment) {
+    if (filteredDawnEquipment[equipmentSlot] && filteredDawnEquipment[equipmentSlot].length === 1) {
+      const filteredDawnItemHash = filteredDawnEquipment[equipmentSlot][0].itemHash
+      const filteredDawnItemInstanceId = filteredDawnEquipment[equipmentSlot][0].itemInstanceId
+
+      if (characterInventory && characterInventory.character && characterInventory.character.equipment && characterInventory.character.equipment[equipmentSlot]) {
+        const characterEquipmentSlotItems = characterInventory.character.equipment[equipmentSlot]
+
+        // find the equipment in the character's inventory.
+        if (characterEquipmentSlotItems.some(equipment =>
+          (equipment.itemHash === filteredDawnItemHash && equipment.itemInstanceId === filteredDawnItemInstanceId))) {
+          // add an equipment slot when the item is found.
+          stowedDawnEquipment[equipmentSlot] = []
+
+          stowedDawnEquipment[equipmentSlot].push(characterEquipmentSlotItems.find(equipment =>
+            (equipment.itemHash === filteredDawnItemHash && equipment.itemInstanceId === filteredDawnItemInstanceId)))
+        } else {
+          // add an equipment slot when the item is not found in the character's slot.
+          vaultEquipment[equipmentSlot] = []
+
+          // if the equipment isn't in the character's inventory then list the items to be checked in the vault.
+          vaultEquipment[equipmentSlot].push(filteredDawnEquipment[equipmentSlot][0])
+        }
+      } else {
+        // add an equipment slot when the item is not found in the character's slot.
+        vaultEquipment[equipmentSlot] = []
+
+        // if the equipment isn't in the character's inventory then list the items to be checked in the vault.
+        vaultEquipment[equipmentSlot].push(filteredDawnEquipment[equipmentSlot][0])
+      }
+    }
+  }
 
   if (transferLocation === 'vault') {
-    const vaultEquipment = (await vaultService(req, membershipType, membershipId)).vault.equipment
-    const vaultTransferrables = []
+    // TODO: if vaultEquipment has entries, then make a request to retrieve vault items for the profile.
 
-    return {}// vaultEquipment
+    // const vaultEquipment = await vaultService(req, membershipType, membershipId)
+
+    // const vaultEquipment = (await vaultService(req, membershipType, membershipId)).vault.equipment
+    // const vaultTransferrables = []
+
+    // return {}// vaultEquipment //{}
 
     // dawnEquipment.forEach(dawnEquip => {
     //   if (true) {
 
     //   }
     // })
+  } else {
+    // TODO: transfer equipment to the character's inventory.
   }
 
-  // TODO: if the boolean property for allowing equipping from the vault is true
-  // TODO: make a request to check the inventory of the character.
+  return stowedDawnEquipment// {}
+}
 
-  // list the itemIds from each equipment in the body
-  // const itemIds = []
-  // if (filteredRequestEquipment.length > 0) {
-  //   filteredRequestEquipment.forEach(item => { itemIds.push(item.itemId) })
-  // }
+async function characterInventoryService (req, membershipType, membershipId, characterId) {
+  // request options
+  const characterOption = {
+    method: 'GET',
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/inventory/character?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`,
+    headers: {
+      'x-access-token': req.headers['x-access-token'],
+      'x-refresh-token': req.headers['x-refresh-token']
+    }
+  }
 
-  // const itemIds = filteredRequestEquipment.map(item => item.itemId)
+  const characterResponse = await request(characterOption, req)
 
-  const clientResponse = {}
-  // let bungieResponse
-  // let dawnResponse = {}
-
-  // if (itemIds.length > 0) {
-  //   // request options
-  //   const equipmentsOption = {
-  //     method: 'POST',
-  //     url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/EquipItems`,
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //       'X-API-Key': process.env.API_KEY,
-  //       Authorization: oAuthUtility.authorization(req)
-  //     },
-  //     data: {
-  //       itemIds: itemIds,
-  //       transferLocation: transferLocation,
-  //       membershipType: membershipType,
-  //       membershipId: membershipId,
-  //       characterId: characterId
-  //     }
-  //   }
-
-  // bungieResponse = await request(equipmentsOption, req)
-
-  // dawnResponse = transform(bungieResponse)
-
-  // replace bungie's integer error code with a message, taken from bungie's platform site.
-  // dawnResponse.equipment.forEach(item => {
-  //   item.equipStatus = ErrorCodesEnum(item.equipStatus, req)
-  // })
-
-  // clientResponse.equipmentDawned = dawnResponse
-  // }
-
-  // if transferLocation is set to 'vault', transfer unequipped items to the vault
-  // if (clientResponse.equipmentDawned && transferLocation === 'vault') {
-  //   const transferResponse = await transferItemsService(req, captureResponse, filteredRequestEquipment, membershipType, characterId)
-
-  //   clientResponse.transferredItems = transferResponse
-  // }
-
-  // response
-  return clientResponse
+  return characterResponse
 }
 
 async function vaultService (req, membershipType, membershipId) {
   // request options
   const vaultOption = {
     method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/inventory/vault?membershipType=${membershipType}&membershipId=${membershipId}`
+    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/inventory/vault?membershipType=${membershipType}&membershipId=${membershipId}`,
+    headers: {
+      'x-access-token': req.headers['x-access-token'],
+      'x-refresh-token': req.headers['x-refresh-token']
+    }
   }
 
   const vaultResponse = await request(vaultOption, req)
@@ -229,7 +231,7 @@ function transform (bungieResponse) {
   {
     "equipment": [Response.equipResults.
         {
-            "itemId": itemInstanceId,
+            "itemId": $string(itemInstanceId),
             "equipStatus": equipStatus
         }
     ]

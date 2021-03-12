@@ -42,8 +42,10 @@ module.exports = {
     let authKey = ''
 
     if (req.headers['x-access-token']) {
+      // if the access token is available, use it for the request.
       authKey = req.headers['x-access-token']
     } else {
+      // if the refresh token is available, throw a 401 error so that the 401-handler can refresh the token and retry the requests.
       throw (createError(401, 'Access token not available.'))
     }
 
