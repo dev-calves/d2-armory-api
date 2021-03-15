@@ -8,7 +8,7 @@ router.get('/oauth/access', (req, res, next) => {
   logger.debug({ message: req.path, headers: req.headers, request: req.headers.code })
 
   // request to receive tokens.
-  return oAuthUtility.oauthRequest(oAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
+  return oAuthUtility.request(oAuthUtility.tokensOption(req.headers.code), req, res).then(response => {
     // send ok response
     const message = { message: 'tokens recieved.' }
 

@@ -1,4 +1,3 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
 const { validationResult } = require('express-validator')
 const logger = require('../../winston')
@@ -29,7 +28,7 @@ router.get('/vault', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  return inventoryService(req, req.query.membershipType, req.query.membershipId).then(response => {
+  return inventoryService(req, res, req.query.membershipType, req.query.membershipId).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -41,11 +40,12 @@ router.get('/vault', [
 
 module.exports = router
 
-async function inventoryService (req, membershipType, membershipId) {
+async function inventoryService (req, res, membershipType, membershipId) {
   // request options
   const inventoryOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${membershipType}/Profile/${membershipId}?components=102`,
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: `/Platform/Destiny2/${membershipType}/Profile/${membershipId}?components=102`,
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
@@ -53,21 +53,11 @@ async function inventoryService (req, membershipType, membershipId) {
     }
   }
 
-  const bungieResponse = await request(inventoryOption, req)
+  const bungieResponse = await oAuthUtility.request(inventoryOption, req, res)
 
-  const clientResponse = transform(bungieResponse)
+  const clientResponse = transform(bungieResponse.data)
 
   return clientResponse
-}
-
-async function request (inventoryOption, req) {
-  logger.debug({ message: req.path, options: inventoryOption })
-
-  const bungieResponse = await axios(inventoryOption)
-
-  logger.debug({ message: req.path, bungieResponse: bungieResponse.data })
-
-  return bungieResponse.data
 }
 
 function transform (bungieResponse) {

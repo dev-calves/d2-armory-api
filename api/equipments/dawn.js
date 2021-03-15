@@ -1,4 +1,3 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
 const { validationResult } = require('express-validator')
 const logger = require('../../winston')
@@ -6,7 +5,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-// const oAuthUtility = require('../../utility/oauth/oauth')
+const oAuthUtility = require('../../utility/oauth/oauth')
 // const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
 const slotTypes = require('../../utility/models/equipment-slot-types')
 const validations = require('../../utility/validations/body')
@@ -35,7 +34,7 @@ router.post('/dawn', [
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   /* TODO: remove res from this function call. It is just here for testing oauth refresh. */
-  return dawnService(req, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation, res)
+  return dawnService(req, res, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation, res)
     .then(dawnResponse => {
       logger.debug({ message: req.path, dawnResponse: dawnResponse })
 
@@ -49,9 +48,9 @@ router.post('/dawn', [
 module.exports = router
 
 /* TODO: remove res, just here for testing */
-async function dawnService (req, dawnEquipment, membershipType, membershipId, characterId, transferLocation, res) {
+async function dawnService (req, res, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
   // retrieve current equipment info.
-  const captureResponse = await captureService(req, membershipType, membershipId, characterId)
+  const captureResponse = await captureService(req, res, membershipType, membershipId, characterId)
 
   // filter out capture response items out of the dawn request.
   const filteredDawnEquipment = Object.assign({}, dawnEquipment)
@@ -72,7 +71,7 @@ async function dawnService (req, dawnEquipment, membershipType, membershipId, ch
   }
 
   // check the character's inventory to see if they are carrying the dawn request equipment.
-  const characterInventory = await characterInventoryService(req, membershipType, membershipId, characterId)
+  const characterInventory = await characterInventoryService(req, res, membershipType, membershipId, characterId)
 
   const stowedDawnEquipment = {}
   const vaultEquipment = {}
@@ -132,23 +131,24 @@ async function dawnService (req, dawnEquipment, membershipType, membershipId, ch
   return stowedDawnEquipment// {}
 }
 
-async function characterInventoryService (req, membershipType, membershipId, characterId) {
+async function characterInventoryService (req, res, membershipType, membershipId, characterId) {
   // request options
   const characterOption = {
     method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/inventory/character?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`,
+    baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}/api`,
+    url: `/inventory/character?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`,
     headers: {
       'x-access-token': req.headers['x-access-token'],
       'x-refresh-token': req.headers['x-refresh-token']
     }
   }
 
-  const characterResponse = await request(characterOption, req)
+  const characterResponse = await oAuthUtility.request(characterOption, req, res)
 
-  return characterResponse
+  return characterResponse.data
 }
 
-async function vaultService (req, membershipType, membershipId) {
+async function vaultService (req, res, membershipType, membershipId) {
   // request options
   const vaultOption = {
     method: 'GET',
@@ -159,33 +159,30 @@ async function vaultService (req, membershipType, membershipId) {
     }
   }
 
-  const vaultResponse = await request(vaultOption, req)
+  const vaultResponse = await oAuthUtility.request(vaultOption, req, res)
 
-  return vaultResponse
+  return vaultResponse.data
 }
 
-async function captureService (req, membershipType, membershipId, characterId) {
+async function captureService (req, res, membershipType, membershipId, characterId) {
   // request options
   const captureOption = {
     method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/equipment/capture?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`
+    baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}/api`,
+    url: `/equipment/capture?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`
   }
 
-  const captureResponse = await request(captureOption, req)
+  const captureResponse = await oAuthUtility.request(captureOption, req, res)
 
-  return captureResponse
+  return captureResponse.data
 }
 
-async function transferItemsService (req, captureResponse, filteredRequestEquipment, membershipType, characterId) {
+async function transferItemsService (req, res, captureResponse, filteredRequestEquipment, membershipType, characterId) {
   // filters out the subclass item and filters in items that were unequipped by the dawn request
   // the subclass item cannot be sent to the vault.
   const transferableEquipment = captureResponse.equipment.filter(captureItem =>
     captureItem.equipmentSlotHash !== slotTypes.SUBCLASS && filteredRequestEquipment.some(dawnItem =>
       captureItem.equipmentSlotHash === dawnItem.equipmentSlotHash))
-
-  let transferResponse = {
-
-  }
 
   if (transferableEquipment.length > 0) {
     // request options
@@ -201,28 +198,12 @@ async function transferItemsService (req, captureResponse, filteredRequestEquipm
       }
     }
 
-    transferResponse = await request(transferItemsOption, req)
+    const transferResponse = await oAuthUtility.request(transferItemsOption, req, res)
+
+    return transferResponse.data
   }
 
-  return transferResponse
-}
-
-async function request (equipmentOption, req) {
-  logger.debug({ message: req.path, options: equipmentOption })
-
-  const equipmentsResponse = await axios(equipmentOption)
-
-  if (equipmentOption.url.includes(process.env.SERVER_DOMAIN)) {
-    if (equipmentOption.url.includes('/transfer-items')) {
-      logger.debug({ message: req.path, transferItemsResponse: equipmentsResponse.data })
-    } else if (equipmentOption.url.includes('/capture')) {
-      logger.debug({ message: req.path, captureResponse: equipmentsResponse.data })
-    }
-  } else {
-    logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
-  }
-
-  return equipmentsResponse.data
+  return { }
 }
 
 function transform (bungieResponse) {

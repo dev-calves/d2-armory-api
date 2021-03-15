@@ -1,11 +1,11 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
 const { query, body, validationResult } = require('express-validator')
 const createError = require('http-errors')
 const logger = require('../../winston')
 const express = require('express')
-
 const router = express.Router()
+
+const oAuthUtility = require('../../utility/oauth/oauth')
 
 /* GET Definition */
 router.get('/equipment-slot', [
@@ -39,10 +39,10 @@ router.get('/equipment-slot', [
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
   if (req.query.itemHash) {
-    return inventoryItemService(req).then(inventoryItemResponse => {
+    return inventoryItemService(req, res).then(inventoryItemResponse => {
       logger.debug({ message: `${req.path} - inventoryItem`, clientResponse: inventoryItemResponse })
 
-      return equipmentSlotService(req, inventoryItemResponse.equipmentSlotHash, req.query.itemHash, inventoryItemResponse.name).then(equipmentSlotResponse => {
+      return equipmentSlotService(req, res, inventoryItemResponse.equipmentSlotHash, req.query.itemHash, inventoryItemResponse.name).then(equipmentSlotResponse => {
         logger.debug({ message: `${req.path} - equipmentSlot`, clientResponse: equipmentSlotResponse })
 
         return res.status(200).json(equipmentSlotResponse)
@@ -52,7 +52,7 @@ router.get('/equipment-slot', [
       return
     })
   } else {
-    return equipmentSlotService(req, req.query.equipmentSlotHash).then(equipmentSlotResponse => {
+    return equipmentSlotService(req, res, req.query.equipmentSlotHash).then(equipmentSlotResponse => {
       logger.debug({ message: req.path, clientResponse: equipmentSlotResponse })
 
       return res.status(200).json(equipmentSlotResponse)
@@ -84,11 +84,11 @@ router.post('/equipment-slots', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return inventoryItemService(req, req.body).then(inventoryItemResponse => {
+  return inventoryItemService(req, res).then(inventoryItemResponse => {
     const requests = []
 
     for (const item of inventoryItemResponse) {
-      requests.push(equipmentSlotService(req, item.equipmentSlotHash, item.itemHash, item.name))
+      requests.push(equipmentSlotService(req, res, item.equipmentSlotHash, item.itemHash, item.name))
     }
 
     Promise.all(requests).then(response => {
@@ -102,19 +102,21 @@ router.post('/equipment-slots', [
 
 module.exports = router
 
-async function equipmentSlotService (req, equipmentSlotHash, itemHash, itemName) {
+async function equipmentSlotService (req, res, equipmentSlotHash, itemHash, itemName) {
   const equipmentSlotDefinitionOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyEquipmentSlotDefinition/${equipmentSlotHash}`,
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: `/Platform/Destiny2/Manifest/DestinyEquipmentSlotDefinition/${equipmentSlotHash}`,
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY
     }
   }
 
-  const bungieResponse = await request(equipmentSlotDefinitionOption, req)
+  const bungieResponse = await oAuthUtility.request(equipmentSlotDefinitionOption, req, res)
 
   // trim content
-  const clientResponse = transform(bungieResponse)
+  const clientResponse = transform(bungieResponse.data)
 
   // if array is empty, then the hash isn't valid for this definition type.
   if (Object.keys(clientResponse).length === 0 && clientResponse.constructor === Object) {
@@ -128,38 +130,30 @@ async function equipmentSlotService (req, equipmentSlotHash, itemHash, itemName)
   return clientResponse
 }
 
-async function inventoryItemService (req, itemHashes) {
+async function inventoryItemService (req, res) {
   // request options
   let inventoryItemOption = {}
 
   if (req.method.toUpperCase() === 'GET') {
     inventoryItemOption = {
       method: 'GET',
-      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-item?itemHash=${req.query.itemHash}`
+      baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}`,
+      url: `/api/definition/inventory-item?itemHash=${req.query.itemHash}`
     }
   } else if (req.method.toUpperCase() === 'POST') {
     inventoryItemOption = {
       method: 'POST',
-      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-items`,
+      baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}`,
+      url: '/api/definition/inventory-items',
       data: req.body
     }
   } else {
     throw (createError(500, 'method not available for this route'))
   }
 
-  const inventoryItemResponse = await request(inventoryItemOption, req)
+  const inventoryItemResponse = await oAuthUtility.request(inventoryItemOption, req, res)
 
-  return inventoryItemResponse
-}
-
-async function request (definitionOption, req) {
-  logger.debug({ message: req.path, options: definitionOption })
-
-  const definitionResponse = await axios(definitionOption)
-
-  logger.debug({ message: req.path, bungieResponse: definitionResponse.data })
-
-  return definitionResponse.data
+  return inventoryItemResponse.data
 }
 
 function transform (definitionResponse) {

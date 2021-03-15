@@ -1,4 +1,4 @@
-const axios = require('axios')
+// const axios = require('axios')
 const jsonata = require('jsonata')
 const { body, validationResult } = require('express-validator')
 const logger = require('../../winston')
@@ -30,7 +30,7 @@ router.post('/transfer-item', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemHash).then(response => {
+  return transferItemService(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemHash).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -66,7 +66,7 @@ router.post('/transfer-items', [
   const transfers = [] // holds the collective responses from the item transfer api
 
   for (const item of req.body.equipment) {
-    transfers.push(transferItemService(req, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemHash))
+    transfers.push(transferItemService(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, item.itemId, item.itemHash))
   }
 
   return Promise.all(transfers).then(response => {
@@ -79,11 +79,12 @@ router.post('/transfer-items', [
 
 module.exports = router
 
-async function transferItemService (req, membershipType, characterId, transferToVault, itemId, itemHash) {
+async function transferItemService (req, res, membershipType, characterId, transferToVault, itemId, itemHash) {
   // request options
   const transferItemOption = {
     method: 'POST',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/TransferItem`,
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: '/Platform/Destiny2/Actions/Items/TransferItem',
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
@@ -99,23 +100,23 @@ async function transferItemService (req, membershipType, characterId, transferTo
   }
 
   // itemnotfounds are returned as errors by bungie.
-  const bungieResponse = await request(transferItemOption, req)
+  const bungieResponse = await oAuthUtility.request(transferItemOption, req, res)
 
-  const clientResponse = transform(bungieResponse)
+  const clientResponse = transform(bungieResponse.data)
   clientResponse.itemId = itemId
 
   return clientResponse
 }
 
-async function request (transferItemOption, req) {
-  logger.debug({ message: req.path, options: transferItemOption })
+// async function request (transferItemOption, req) {
+//   logger.debug({ message: req.path, options: transferItemOption })
 
-  const bungieResponse = await axios(transferItemOption)
+//   const bungieResponse = await axios(transferItemOption)
 
-  logger.debug({ message: req.path, bungieResponse: bungieResponse.data })
+//   logger.debug({ message: req.path, bungieResponse: bungieResponse.data })
 
-  return bungieResponse.data
-}
+//   return bungieResponse.data
+// }
 
 function transform (bungieResponse) {
   // expression for transforming the response

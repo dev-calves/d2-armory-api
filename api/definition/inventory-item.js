@@ -1,9 +1,10 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
 const { query, body, validationResult } = require('express-validator')
 const createError = require('http-errors')
 const logger = require('../../winston')
 const express = require('express')
+
+const oAuthUtility = require('../../utility/oauth/oauth')
 
 const router = express.Router()
 
@@ -25,7 +26,7 @@ router.get('/inventory-item', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  return inventoryItemService(req, req.query.itemHash).then(response => {
+  return inventoryItemService(req, res, req.query.itemHash).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -59,7 +60,7 @@ router.post('/inventory-items', [
   const requests = []
 
   for (const itemHash of req.body.itemHashes) {
-    requests.push(inventoryItemService(req, itemHash))
+    requests.push(inventoryItemService(req, res, itemHash))
   }
 
   return Promise.all(requests).then(response => {
@@ -74,20 +75,22 @@ router.post('/inventory-items', [
 
 module.exports = router
 
-async function inventoryItemService (req, itemHash) {
+async function inventoryItemService (req, res, itemHash) {
   // request options
   const definitionOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}`,
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: `/Platform/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}`,
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY
     }
   }
 
-  const bungieResponse = await request(definitionOption, req)
+  const bungieResponse = await oAuthUtility.request(definitionOption, req, res)
 
   // trim content
-  const clientResponse = transform(bungieResponse)
+  const clientResponse = transform(bungieResponse.data)
 
   // if array is empty, then the hash isn't valid for this definition type.
   if (Object.keys(clientResponse).length === 0 && clientResponse.constructor === Object) {
@@ -97,16 +100,6 @@ async function inventoryItemService (req, itemHash) {
   clientResponse.itemHash = itemHash
 
   return clientResponse
-}
-
-async function request (definitionOption, req) {
-  logger.debug({ message: req.path, options: definitionOption })
-
-  const definitionResponse = await axios(definitionOption)
-
-  logger.debug({ message: req.path, bungieResponse: definitionResponse.data })
-
-  return definitionResponse.data
 }
 
 function transform (definitionResponse) {
