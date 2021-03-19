@@ -120,36 +120,36 @@ const transferSingleItemService = async (req, res, transfers) => {
 
   // check if items are available to be transfered.
   if (req.body.transferToVault) {
-    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, transfers, req.body.character)
-
-    // transfer the item if it is safe for transfer
-    if (transfers[0].transferable) {
-      const transferResponse = transferItemRequest(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemHash)
-
-      return transferResponse
-    } else {
-      // respond with a failed message if the item is not safe to transfer
-      return {
-        transferStatus: `Transfer Failed - Item was not available in the ${(req.body.transferToVault) ? 'inventory' : 'vault'}.`,
-        itemId: req.body.itemId,
-        itemHash: req.body.itemHash
-      }
-    }
+    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.character, transfers)
   } else {
     await checkVaultInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.vault, transfers)
+  }
 
-    // transfer the item if it is safe for transfer
-    if (transfers[0].transferable) {
-      const transferResponse = await transferItemRequest(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemHash)
+  // transfer the item if it is safe for transfer
+  if (transfers[0].transferable) {
+    const serviceResponses = await Promise.allSettled([transferItemRequest(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, req.body.itemId, req.body.itemHash)])
 
-      return transferResponse
-    } else {
-      // respond with a failed message if the item is not safe to transfer
-      return {
-        transferStatus: `Transfer Failed - Item was not available in the ${(req.body.transferToVault) ? 'inventory' : 'vault'}.`,
-        itemId: req.body.itemId,
-        itemHash: req.body.itemHash
-      }
+    let transferResponse
+
+    // set transferResponse
+    if (serviceResponses[0].status === 'fulfilled') {
+      transferResponse = serviceResponses[0].value
+    } else if (serviceResponses[0].status === 'rejected') {
+      // response is coming from a rejected axios response and so hasn't been transformed.
+      const reqData = JSON.parse(serviceResponses[0].reason.config.data)
+
+      transferResponse = transform(serviceResponses[0].reason.response.data)
+      transferResponse.itemHash = reqData.itemReferenceHash
+      transferResponse.itemId = reqData.itemId
+    }
+
+    return transferResponse
+  } else {
+    // respond with a failed message if the item is not safe to transfer
+    return {
+      transferStatus: `Transfer Failed - Item was not available in the ${(req.body.transferToVault) ? 'inventory' : 'vault'}.`,
+      itemId: req.body.itemId,
+      itemHash: req.body.itemHash
     }
   }
 }
@@ -157,7 +157,7 @@ const transferSingleItemService = async (req, res, transfers) => {
 const transferMultipleItemService = async (req, res, transfers) => {
   // check if items are available to be transfered.
   if (req.body.transferToVault) {
-    // check for subclass items, they may be found in character inventory
+    // check for subclass items, these are stored in character inventory and cannot be transfered.
     const itemHashes = transfers.map(transferItem => {
       return transferItem.itemHash
     })
@@ -171,98 +171,55 @@ const transferMultipleItemService = async (req, res, transfers) => {
       }
     }
 
-    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, transfers, req.body.character)
-
-    const transferServiceRequests = []
-    const transferables = transfers.filter(item => item.transferable)
-    const nonTransferables = transfers.filter(item => !item.transferable)
-
-    // remove transferables prop.
-    for (const transferItem of nonTransferables) {
-      if (!transferItem.transferStatus) {
-        transferItem.transferStatus = `Transfer Failed - Item was not available in the ${(req.body.transferToVault) ? 'inventory' : 'vault'}.`
-      }
-      delete transferItem.transferable
-    }
-
-    // call the transfer service for each transferable item.
-    for (const transferItem of transferables) {
-      delete transferItem.transferable
-      transferServiceRequests.push(transferItemRequest(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, transferItem.itemId, transferItem.itemHash))
-    }
-
-    const serviceResponses = await Promise.allSettled(transferServiceRequests)
-
-    const successResponses = []
-
-    // collect the successful/failed responses
-    for (const result of serviceResponses) {
-      let serviceItem
-
-      if (result.status === 'fulfilled') {
-        serviceItem = result.value
-      } else if (result.status === 'rejected') {
-        // response is coming from a rejected axios response and so hasn't been transformed.
-        const reqData = JSON.parse(result.reason.config.data)
-
-        serviceItem = transform(result.reason.response.data)
-        serviceItem.itemHash = reqData.itemReferenceHash
-        serviceItem.itemId = reqData.itemId
-      }
-
-      successResponses.push(serviceItem)
-    }
-
-    // combine non-transferables with the transferables before responding to client
-    const transferResponses = successResponses.concat(nonTransferables)
-
-    return transferResponses
+    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, transfers)
   } else {
     await checkVaultInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.vault, transfers)
-
-    const transferServiceRequests = []
-    const transferables = transfers.filter(item => item.transferable)
-    const nonTransferables = transfers.filter(item => !item.transferables)
-
-    // remove transferables prop.
-    for (const transferItem of nonTransferables) {
-      transferItem.transferStatus = `Transfer Failed - Item was not available in the ${(req.body.transferToVault) ? 'inventory' : 'vault'}.`
-      delete transferItem.transferable
-    }
-
-    // call the transfer service for each transferable item.
-    for (const transferItem of transferables) {
-      delete transferItem.transferable
-      transferServiceRequests.push(transferItemRequest(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, transferItem.itemId, transferItem.itemHash))
-    }
-
-    const serviceResponses = await Promise.allSettled(transferServiceRequests)
-
-    const successResponses = []
-
-    // collect the successful/failed responses
-    for (const result of serviceResponses) {
-      let serviceItem
-
-      if (result.status === 'fulfilled') {
-        serviceItem = result.value
-      } else if (result.status === 'rejected') {
-        // response is coming from a rejected axios response and so hasn't been transformed.
-        const reqData = JSON.parse(result.reason.config.data)
-
-        serviceItem = transform(result.reason.response.data)
-        serviceItem.itemHash = reqData.itemReferenceHash
-        serviceItem.itemId = reqData.itemId
-      }
-
-      successResponses.push(serviceItem)
-    }
-
-    // concat the two lists of transfer results and respond to client.
-    const transferResponses = successResponses.concat(nonTransferables)
-
-    return transferResponses
   }
+
+  const transferServiceRequests = []
+  const transferables = transfers.filter(item => item.transferable)
+  const nonTransferables = transfers.filter(item => !item.transferable)
+
+  // remove transferables prop.
+  for (const transferItem of nonTransferables) {
+    if (!transferItem.transferStatus) {
+      transferItem.transferStatus = `Transfer Failed - Item was not available in the ${(req.body.transferToVault) ? 'inventory' : 'vault'}.`
+    }
+    delete transferItem.transferable
+  }
+
+  // call the transfer service for each transferable item.
+  for (const transferItem of transferables) {
+    delete transferItem.transferable
+    transferServiceRequests.push(transferItemRequest(req, res, req.body.membershipType, req.body.characterId, req.body.transferToVault, transferItem.itemId, transferItem.itemHash))
+  }
+
+  const serviceResponses = await Promise.allSettled(transferServiceRequests)
+
+  const successResponses = []
+
+  // collect the successful/failed responses
+  for (const result of serviceResponses) {
+    let serviceItem
+
+    if (result.status === 'fulfilled') {
+      serviceItem = result.value
+    } else if (result.status === 'rejected') {
+      // response is coming from a rejected axios response and so hasn't been transformed.
+      const reqData = JSON.parse(result.reason.config.data)
+
+      serviceItem = transform(result.reason.response.data)
+      serviceItem.itemHash = reqData.itemReferenceHash
+      serviceItem.itemId = reqData.itemId
+    }
+
+    successResponses.push(serviceItem)
+  }
+
+  // combine non-transferables with the transferables before responding to client
+  const transferResponses = successResponses.concat(nonTransferables)
+
+  return transferResponses
 }
 
 async function transferItemRequest (req, res, membershipType, characterId, transferToVault, itemId, itemHash) {
