@@ -1,5 +1,5 @@
 const jsonata = require('jsonata')
-const { query, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
 const createError = require('http-errors')
 const express = require('express')
@@ -9,12 +9,13 @@ const ClassEnum = require('./models/class')
 const GenderEnum = require('./models/gender')
 const RaceEnum = require('./models/race')
 const oAuthUtility = require('../../utility/oauth/oauth')
+const validations = require('../../utility/validations/query')
 
 /* GET characters */
 router.get('/characters', [
   // validations
-  query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  validations.membershipId,
+  validations.membershipType
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)

@@ -1,17 +1,18 @@
 const jsonata = require('jsonata')
-const { query, body, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const createError = require('http-errors')
 const logger = require('../../winston')
 const express = require('express')
 
 const oAuthUtility = require('../../utility/oauth/oauth')
+const validations = require('../../utility/validations')
 
 const router = express.Router()
 
 /* GET Definition */
 router.get('/inventory-item', [
   // validations
-  query('itemHash').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  validations.query.itemHash
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -39,10 +40,7 @@ router.get('/inventory-item', [
 /* POST Definition */
 router.post('/inventory-items', [
   // validations
-  body('itemHashes').notEmpty().withMessage('required parameter')
-    .isArray().withMessage('must be an array'),
-  body('itemHashes[*]').isString().withMessage('must be a string')
-    .isInt().withMessage('string must only contain an integer')
+  validations.body.itemHashes
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)

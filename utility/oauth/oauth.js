@@ -86,6 +86,48 @@ const setTokenCookies = (response, req, res) => {
   }
 }
 
+const setCookies = (axiosResponse, res) => {
+  if (axiosResponse.headers['set-cookie']) { // axios has cookie/s
+    if (res.get('set-cookie')) { // res has cookie/s
+      if (Array.isArray(axiosResponse.headers['set-cookie'])) { // axios has multiple cookies, array
+        if (Array.isArray(res.get('set-cookie'))) { // res has multiple cookies, array
+          axiosResponse.headers['set-cookie'].forEach(axiosCookie => {
+            const axiosCookieKey = axiosCookie.substring(0, axiosCookie.indexOf('='))
+
+            if (res.get('set-cookie').every(resCookie => (!resCookie.includes(axiosCookieKey)))) {
+              res.append('set-cookie', axiosCookie)
+            }
+          })
+        } else { // res has a cookie, string
+          const resCookieKey = res.get('set-cookie').substring(0, res.get('set-cookie').indexOf('='))
+
+          axiosResponse.headers['set-cookie'].forEach(axiosCookie => {
+            if (!axiosCookie.includes(resCookieKey)) {
+              res.append('set-cookie', axiosCookie)
+            }
+          })
+        }
+      } else { // axios has a cookie, string
+        if (Array.isArray(res.get('set-cookie'))) { // res has multiple cookies, array
+          const axiosCookieKey = axiosResponse.headers['set-cookie'].substring(0, axiosResponse.headers['set-cookie'].indexOf('='))
+
+          if (res.get('set-cookie').every(resCookie => !resCookie.includes(axiosCookieKey))) {
+            res.append('set-cookie', axiosResponse.headers['set-cookie'])
+          }
+        } else { // res has a cookie, string
+          const axiosCookieKey = axiosResponse.headers['set-cookie'].substring(0, axiosResponse.headers['set-cookie'].indexOf('='))
+
+          if (!res.get('set-cookie').includes(axiosCookieKey)) {
+            res.append('set-cookie', axiosResponse.headers['set-cookie'])
+          }
+        }
+      }
+    } else { // res has no cookies, set new cookies directly.
+      res.append('set-cookie', axiosResponse.headers['set-cookie'])
+    }
+  }
+}
+
 const authorization = (req) => {
   let authKey = ''
 
@@ -131,15 +173,12 @@ const request = async (option, req, res) => {
         logger.debug({ message: `${req.path} - oauth-refresh`, refresh: req.headers['x-refresh-token'] })
 
         // request new tokens and set them as cookies for future requests.
-        const oauthResponse = await request(refreshOption(req.headers['x-refresh-token'], req, res))
-
-        // update x-headers on req and set cookies on res
-        setTokenCookies(oauthResponse.data, req, res)
+        await request(refreshOption(req.headers['x-refresh-token']), req, res)
 
         // update authorization header in option
         option.headers.Authorization = authorization(req)
 
-        // retryrequest with the token updated.
+        // retry request with the token updated.
         const retriedResponse = await request(option, req, res)
 
         return retriedResponse
@@ -152,50 +191,10 @@ const request = async (option, req, res) => {
   })
 
   // update x-headers on req and set token cookies on res
-  if (axiosResponse && axiosResponse.data && axiosResponse.data.access_token && axiosResponse.data.refresh_token) {
-    setTokenCookies(axiosResponse.data, req, res)
-  }
+  setTokenCookies(axiosResponse.data, req, res)
 
   // transfer cookies to res
-  if (axiosResponse.headers['set-cookie']) { // axios has cookie/s
-    if (res.get('set-cookie')) { // res has cookie/s
-      if (Array.isArray(axiosResponse.headers['set-cookie'])) { // axios has multiple cookies, array
-        if (Array.isArray(res.get('set-cookie'))) { // res has multiple cookies, array
-          axiosResponse.headers['set-cookie'].forEach(axiosCookie => {
-            const axiosCookieKey = axiosCookie.substring(0, axiosCookie.indexOf('='))
-
-            if (res.get('set-cookie').every(resCookie => (!resCookie.includes(axiosCookieKey)))) {
-              res.append('set-cookie', axiosCookie)
-            }
-          })
-        } else { // res has a cookie, string
-          const resCookieKey = res.get('set-cookie').substring(0, res.get('set-cookie').indexOf('='))
-
-          axiosResponse.headers['set-cookie'].forEach(axiosCookie => {
-            if (!axiosCookie.includes(resCookieKey)) {
-              res.append('set-cookie', axiosCookie)
-            }
-          })
-        }
-      } else { // axios has a cookie, string
-        if (Array.isArray(res.get('set-cookie'))) { // res has multiple cookies, array
-          const axiosCookieKey = axiosResponse.headers['set-cookie'].substring(0, axiosResponse.headers['set-cookie'].indexOf('='))
-
-          if (res.get('set-cookie').every(resCookie => !resCookie.includes(axiosCookieKey))) {
-            res.append('set-cookie', axiosResponse.headers['set-cookie'])
-          }
-        } else { // res has a cookie, string
-          const axiosCookieKey = axiosResponse.headers['set-cookie'].substring(0, axiosResponse.headers['set-cookie'].indexOf('='))
-
-          if (!res.get('set-cookie').includes(axiosCookieKey)) {
-            res.append('set-cookie', axiosResponse.headers['set-cookie'])
-          }
-        }
-      }
-    } else { // res has no cookies, set new cookies directly.
-      res.append('set-cookie', axiosResponse.headers['set-cookie'])
-    }
-  }
+  setCookies(axiosResponse, res)
 
   /**
    * log option and response data for debugging.

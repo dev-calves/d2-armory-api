@@ -5,19 +5,18 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const oAuthUtility = require('../../utility/oauth/oauth')
-// const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
-const slotTypes = require('../../utility/models/equipment-slot-types')
-const validations = require('../../utility/validations/body')
+const utility = require('../../utility')
+
+module.exports = router
 
 /* POST equipments */
 router.post('/dawn', [
   // validations
-  validations.equipment,
-  validations.membershipType,
-  validations.membershipId,
-  validations.characterId,
-  validations.transferLocation
+  utility.validations.body.equipment(true),
+  utility.validations.body.membershipType,
+  utility.validations.body.membershipId,
+  utility.validations.body.characterId,
+  utility.validations.body.transferLocation
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -33,7 +32,6 @@ router.post('/dawn', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  /* TODO: remove res from this function call. It is just here for testing oauth refresh. */
   return dawnService(req, res, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation, res)
     .then(dawnResponse => {
       logger.debug({ message: req.path, dawnResponse: dawnResponse })
@@ -45,12 +43,9 @@ router.post('/dawn', [
     })
 })
 
-module.exports = router
-
-/* TODO: remove res, just here for testing */
 async function dawnService (req, res, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
   // retrieve current equipment info.
-  const captureResponse = await captureService(req, res, membershipType, membershipId, characterId)
+  const captureResponse = await utility.requests.capture(req, res, membershipType, membershipId, characterId)
 
   // filter out capture response items out of the dawn request.
   const filteredDawnEquipment = Object.assign({}, dawnEquipment)
@@ -71,7 +66,7 @@ async function dawnService (req, res, dawnEquipment, membershipType, membershipI
   }
 
   // check the character's inventory to see if they are carrying the dawn request equipment.
-  const characterInventory = await characterInventoryService(req, res, membershipType, membershipId, characterId)
+  const characterInventory = await utility.requests.characterInventory(req, res, membershipType, membershipId, characterId)
 
   const stowedDawnEquipment = {}
   const vaultEquipment = {}
@@ -131,57 +126,11 @@ async function dawnService (req, res, dawnEquipment, membershipType, membershipI
   return stowedDawnEquipment// {}
 }
 
-async function characterInventoryService (req, res, membershipType, membershipId, characterId) {
-  // request options
-  const characterOption = {
-    method: 'GET',
-    baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}/api`,
-    url: `/inventory/character?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`,
-    headers: {
-      'x-access-token': req.headers['x-access-token'],
-      'x-refresh-token': req.headers['x-refresh-token']
-    }
-  }
-
-  const characterResponse = await oAuthUtility.request(characterOption, req, res)
-
-  return characterResponse.data
-}
-
-async function vaultService (req, res, membershipType, membershipId) {
-  // request options
-  const vaultOption = {
-    method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/inventory/vault?membershipType=${membershipType}&membershipId=${membershipId}`,
-    headers: {
-      'x-access-token': req.headers['x-access-token'],
-      'x-refresh-token': req.headers['x-refresh-token']
-    }
-  }
-
-  const vaultResponse = await oAuthUtility.request(vaultOption, req, res)
-
-  return vaultResponse.data
-}
-
-async function captureService (req, res, membershipType, membershipId, characterId) {
-  // request options
-  const captureOption = {
-    method: 'GET',
-    baseURL: `${req.protocol}://${process.env.SERVER_DOMAIN}/api`,
-    url: `/equipment/capture?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`
-  }
-
-  const captureResponse = await oAuthUtility.request(captureOption, req, res)
-
-  return captureResponse.data
-}
-
 async function transferItemsService (req, res, captureResponse, filteredRequestEquipment, membershipType, characterId) {
   // filters out the subclass item and filters in items that were unequipped by the dawn request
   // the subclass item cannot be sent to the vault.
   const transferableEquipment = captureResponse.equipment.filter(captureItem =>
-    captureItem.equipmentSlotHash !== slotTypes.SUBCLASS && filteredRequestEquipment.some(dawnItem =>
+    captureItem.equipmentSlotHash !== utility.models.equipmentSlotTypes.SUBCLASS && filteredRequestEquipment.some(dawnItem =>
       captureItem.equipmentSlotHash === dawnItem.equipmentSlotHash))
 
   if (transferableEquipment.length > 0) {
@@ -198,7 +147,7 @@ async function transferItemsService (req, res, captureResponse, filteredRequestE
       }
     }
 
-    const transferResponse = await oAuthUtility.request(transferItemsOption, req, res)
+    const transferResponse = await utility.oauth.request(transferItemsOption, req, res)
 
     return transferResponse.data
   }
