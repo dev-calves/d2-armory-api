@@ -1,12 +1,13 @@
 const jsonata = require('jsonata')
 const { body, validationResult } = require('express-validator')
 const logger = require('../../winston')
+const _ = require('lodash')
+
 const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
 const utility = require('../../utility')
-const equipmentSlotTypes = require('../../utility/models/equipment-slot-types')
 
 /* POST transfer-item */
 router.post('/transfer-item', [
@@ -106,23 +107,11 @@ router.post('/transfer-items', [
 module.exports = router
 
 const transferSingleItemService = async (req, res, transfers) => {
-  // check for subclass item
-  const itemDefinition = await utility.requests.definitionInventoryItem(req, res, transfers[0].itemHash)
-
-  // respond if the item is a subclass item
-  if (itemDefinition.equipmentSlotHash === equipmentSlotTypes.SUBCLASS) {
-    return {
-      transferStatus: 'Transfer Failed - subclass items are not transferable.',
-      itemId: req.body.itemId,
-      itemHash: req.body.itemHash
-    }
-  }
-
   // check if items are available to be transfered.
   if (req.body.transferToVault) {
-    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.character, transfers)
+    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, transfers, req.body.character)
   } else {
-    await checkVaultInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.vault, transfers)
+    await checkVaultInventory(req, res, req.body.membershipType, req.body.membershipId, transfers, req.body.vault)
   }
 
   // transfer the item if it is safe for transfer
@@ -157,23 +146,9 @@ const transferSingleItemService = async (req, res, transfers) => {
 const transferMultipleItemService = async (req, res, transfers) => {
   // check if items are available to be transfered.
   if (req.body.transferToVault) {
-    // check for subclass items, these are stored in character inventory and cannot be transfered.
-    const itemHashes = transfers.map(transferItem => {
-      return transferItem.itemHash
-    })
-
-    const definitions = await utility.requests.definitionInventoryItems(req, res, { itemHashes })
-
-    // update transfer status for subclass items
-    for (const definitionItemIndex in definitions) {
-      if (definitions[definitionItemIndex].equipmentSlotHash === equipmentSlotTypes.SUBCLASS) {
-        transfers[definitionItemIndex].transferStatus = 'Transfer Failed - subclass items are not transferable.'
-      }
-    }
-
-    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, transfers)
+    await checkCharacterInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.characterId, transfers, req.body.character)
   } else {
-    await checkVaultInventory(req, res, req.body.membershipType, req.body.membershipId, req.body.vault, transfers)
+    await checkVaultInventory(req, res, req.body.membershipType, req.body.membershipId, transfers, req.body.vault)
   }
 
   const transferServiceRequests = []
@@ -257,7 +232,7 @@ const checkCharacterInventory = async (req, res, membershipType, membershipId, c
 
   // initialize equipment
   if (character) {
-    equipment = Object.assign({}, character.equipment)
+    equipment = _.cloneDeep(character.equipment)
   } else {
     const characterInventoryResponse = await utility.requests.characterInventory(req, res, membershipType, membershipId, characterId)
     equipment = characterInventoryResponse.character.equipment
@@ -276,7 +251,7 @@ const checkCharacterInventory = async (req, res, membershipType, membershipId, c
   }
 }
 
-const checkVaultInventory = async (req, res, membershipType, membershipId, vaultItems, transfers) => {
+const checkVaultInventory = async (req, res, membershipType, membershipId, transfers, vaultItems) => {
   let vaultInventory
 
   // initialize items
