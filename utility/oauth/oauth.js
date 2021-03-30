@@ -1,5 +1,6 @@
 const qs = require('qs')
 const axios = require('axios')
+const axiosRetry = require('axios-retry')
 const createError = require('http-errors')
 const jwt = require('jsonwebtoken')
 const logger = require('../../winston')
@@ -161,6 +162,11 @@ const deleteTokens = (req, res) => {
 
 const request = async (option, req, res) => {
   logger.debug({ message: req.path, options: option })
+
+  // added retries, specifically for transferItem requests
+  // that occur before Bungie DBs have updated.
+  // retries won't be logged with this method of retrying requests.
+  axiosRetry(axios, { retries: 2, retryDelay: axiosRetry.exponentialDelay })
 
   /**
    * api requests will retry if the response is 401.
