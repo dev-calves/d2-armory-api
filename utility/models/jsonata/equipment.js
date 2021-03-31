@@ -50,6 +50,12 @@ module.exports =
                         "itemId": $string(itemInstanceId)
                     }
                 ],
+                "Ghost": [items[bucketHash=${bucketHash.GHOST}].
+                    {
+                        "itemHash": $string(itemHash),
+                        "itemId": $string(itemInstanceId)
+                    }
+                ],
                 "Subclass": [items[bucketHash=${bucketHash.SUBCLASS}].
                     {
                         "itemHash": $string(itemHash),

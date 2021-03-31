@@ -47,7 +47,7 @@ router.post('/dawn', [
 
 async function dawnService (req, res, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
   // used in conditionals for performance. Avoids async calls if Subclass is the only equipment needed to be dawned.
-  const vaultableEquipmentSlots = ['Kinetic_Weapons', 'Energy_Weapons', 'Power_Weapons', 'Helmet', 'Gauntlets', 'Chest_Armor', 'Leg_Armor', 'Class_Armor']
+  const vaultableEquipmentSlots = ['Kinetic_Weapons', 'Energy_Weapons', 'Power_Weapons', 'Helmet', 'Gauntlets', 'Chest_Armor', 'Leg_Armor', 'Class_Armor', 'Ghost']
   // response message from the dawn api
   const dawnResponse = {}
 

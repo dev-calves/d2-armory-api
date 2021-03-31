@@ -15,7 +15,8 @@ module.exports = (required, equipmentPath, single) => {
         'Chest_Armor',
         'Leg_Armor',
         'Class_Armor',
-        'Subclass'
+        'Subclass',
+        'Ghost'
       ]
 
       if ((!value) || (value && Object.keys(value).every(slot => allowedValues.some(allowedSlot => slot === allowedSlot)))) return true
