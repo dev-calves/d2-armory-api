@@ -1,4 +1,4 @@
-const oAuthUtility = require('../../utility/oauth/oauth')
+const oauth = require('../oauth/oauth')
 
 async function characterInventory (req, res, membershipType, membershipId, characterId) {
   // request options
@@ -12,7 +12,7 @@ async function characterInventory (req, res, membershipType, membershipId, chara
     }
   }
 
-  const characterResponse = await oAuthUtility.request(characterOption, req, res)
+  const characterResponse = await oauth.request(characterOption, req, res)
 
   return characterResponse.data
 }

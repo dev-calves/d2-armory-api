@@ -1,4 +1,4 @@
-const oAuthUtility = require('../oauth/oauth')
+const oauth = require('../oauth/oauth')
 
 async function definitionInventoryItem (req, res, itemHash) {
   // request options
@@ -10,7 +10,7 @@ async function definitionInventoryItem (req, res, itemHash) {
     url: `/api/definition/inventory-item?itemHash=${itemHash}`
   }
 
-  const inventoryItemResponse = await oAuthUtility.request(inventoryItemOption, req, res)
+  const inventoryItemResponse = await oauth.request(inventoryItemOption, req, res)
 
   return inventoryItemResponse.data
 }

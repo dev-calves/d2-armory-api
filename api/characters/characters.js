@@ -8,7 +8,7 @@ const router = express.Router()
 const ClassEnum = require('./models/class')
 const GenderEnum = require('./models/gender')
 const RaceEnum = require('./models/race')
-const oAuthUtility = require('../../utility/oauth/oauth')
+const utility = require('../../utility')
 const validations = require('../../utility/validations/query')
 
 /* GET characters */
@@ -62,7 +62,7 @@ async function charactersService (req, res) {
   // request characters
   let charactersResponse
   try {
-    charactersResponse = await oAuthUtility.request(charactersOption, req, res)
+    charactersResponse = await utility.oauth.request(charactersOption, req, res)
   } catch (error) {
     throw (error.response)
   }

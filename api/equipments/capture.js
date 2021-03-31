@@ -5,7 +5,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const oAuthUtility = require('../../utility/oauth/oauth')
+const utility = require('../../utility')
 const jsonataModels = require('../../utility/models/jsonata')
 const validations = require('../../utility/validations/query')
 
@@ -54,7 +54,7 @@ async function captureService (req, res, membershipType, membershipId, character
   }
 
   // request characters
-  const bungieResponse = await oAuthUtility.request(equipmentsOption, req, res)
+  const bungieResponse = await utility.oauth.request(equipmentsOption, req, res)
 
   // trim content
   const clientResponse = transform(bungieResponse.data)

@@ -4,7 +4,7 @@ const createError = require('http-errors')
 const logger = require('../../winston')
 const express = require('express')
 
-const oAuthUtility = require('../../utility/oauth/oauth')
+const utility = require('../../utility')
 const validations = require('../../utility/validations')
 
 const router = express.Router()
@@ -85,7 +85,7 @@ async function inventoryItemService (req, res, itemHash) {
     }
   }
 
-  const bungieResponse = await oAuthUtility.request(definitionOption, req, res)
+  const bungieResponse = await utility.oauth.request(definitionOption, req, res)
 
   // trim content
   const clientResponse = transform(bungieResponse.data)

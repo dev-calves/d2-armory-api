@@ -206,7 +206,7 @@ async function transferItemRequest (req, res, membershipType, characterId, trans
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: utility.oauth.authorization(req)
+      Authorization: await utility.oauth.authorization(req, res)
     },
     data: {
       itemReferenceHash: itemHash,

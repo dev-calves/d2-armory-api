@@ -1,4 +1,4 @@
-const oAuthUtility = require('../../utility/oauth/oauth')
+const oauth = require('../oauth/oauth')
 
 async function capture (req, res, membershipType, membershipId, characterId) {
   // request options
@@ -8,7 +8,7 @@ async function capture (req, res, membershipType, membershipId, characterId) {
     url: `/equipment/capture?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`
   }
 
-  const captureResponse = await oAuthUtility.request(captureOption, req, res)
+  const captureResponse = await oauth.request(captureOption, req, res)
 
   return captureResponse.data
 }

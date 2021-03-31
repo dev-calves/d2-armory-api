@@ -2,7 +2,7 @@ const jsonata = require('jsonata')
 const express = require('express')
 const router = express.Router()
 
-const oAuthUtility = require('../../utility/oauth/oauth')
+const utility = require('../../utility')
 const logger = require('../../winston')
 
 /* GET current-user-membership */
@@ -27,13 +27,13 @@ async function currentUserMembershipService (req, res) {
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: oAuthUtility.authorization(req, res)
+      Authorization: await utility.oauth.authorization(req, res)
     }
   }
 
   let currentUserMembershipResponse
   try {
-    currentUserMembershipResponse = await oAuthUtility.request(requestOptions, req, res)
+    currentUserMembershipResponse = await utility.oauth.request(requestOptions, req, res)
   } catch (error) {
     throw (error.response)
   }

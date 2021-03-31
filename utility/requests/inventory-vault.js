@@ -1,4 +1,4 @@
-const oAuthUtility = require('../oauth/oauth')
+const oauth = require('../oauth/oauth')
 
 async function vaultInventory (req, res, membershipType, membershipId) {
   // request options
@@ -12,7 +12,7 @@ async function vaultInventory (req, res, membershipType, membershipId) {
     }
   }
 
-  const vaultResponse = await oAuthUtility.request(vaultOption, req, res)
+  const vaultResponse = await oauth.request(vaultOption, req, res)
 
   return vaultResponse.data
 }

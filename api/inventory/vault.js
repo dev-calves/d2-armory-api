@@ -5,7 +5,7 @@ const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const oAuthUtility = require('../../utility/oauth/oauth')
+const utility = require('../../utility')
 const validations = require('../../utility/validations/query')
 const jsonataModels = require('../../utility/models/jsonata')
 
@@ -49,11 +49,11 @@ async function inventoryService (req, res, membershipType, membershipId) {
     headers: {
       'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: oAuthUtility.authorization(req)
+      Authorization: await utility.oauth.authorization(req, res)
     }
   }
 
-  const bungieResponse = await oAuthUtility.request(inventoryOption, req, res)
+  const bungieResponse = await utility.oauth.request(inventoryOption, req, res)
 
   const clientResponse = transform(bungieResponse.data)
 

@@ -5,16 +5,34 @@ const createError = require('http-errors')
 const jwt = require('jsonwebtoken')
 const logger = require('../../winston')
 
-const accessCookieOptions = {
-  domain: process.env.FRONT_END_DOMAIN,
-  httpOnly: true,
-  secure: (process.env.COOKIE_SECURE_FLAG === 'true')
+const accessCookieOptions = () => {
+  const expireDate = new Date()
+  const now = expireDate.getMilliseconds()
+  const expireTime = now + (45 * 60 * 1000) // 45 minutes in milliseconds
+  expireDate.setMilliseconds(expireTime)
+
+  return {
+    domain: process.env.FRONT_END_DOMAIN,
+    httpOnly: true,
+    secure: (process.env.COOKIE_SECURE_FLAG === 'true'),
+    // stores time in epoch, seconds
+    expires: expireDate
+  }
 }
 
-const refreshCookieOptions = {
-  domain: process.env.FRONT_END_DOMAIN,
-  httpOnly: true,
-  secure: (process.env.COOKIE_SECURE_FLAG === 'true')
+const refreshCookieOptions = () => {
+  const expireDate = new Date()
+  const now = expireDate.getMilliseconds()
+  const expireTime = now + (3 * 7 * 24 * 1 * 60 * 60 * 1000) // 3 weeks in milliseconds
+  expireDate.setMilliseconds(expireTime)
+
+  return {
+    domain: process.env.FRONT_END_DOMAIN,
+    httpOnly: true,
+    secure: (process.env.COOKIE_SECURE_FLAG === 'true'),
+    // stores time in epoch, seconds
+    expires: expireDate
+  }
 }
 
 const tokensBody = (code) => { // used to acquire access and refresh tokens
@@ -82,8 +100,8 @@ const setTokenCookies = (response, req, res) => {
     req.headers['x-refresh-token'] = response.refresh_token
 
     // set cookies
-    res.cookie('access-token', signCookies(req.headers['x-access-token']), accessCookieOptions)
-    res.cookie('refresh-token', signCookies(req.headers['x-refresh-token']), refreshCookieOptions)
+    res.cookie('access-token', signCookies(req.headers['x-access-token']), accessCookieOptions())
+    res.cookie('refresh-token', signCookies(req.headers['x-refresh-token']), refreshCookieOptions())
   }
 }
 
@@ -129,11 +147,18 @@ const setCookies = (axiosResponse, res) => {
   }
 }
 
-const authorization = (req) => {
+const authorization = async (req, res) => {
   let authKey = ''
 
   if (req.headers['x-access-token']) {
     // if the access token is available, use it for the request.
+    authKey = req.headers['x-access-token']
+  } else if (req.headers['x-refresh-token']) {
+    logger.debug({ message: `${req.path} - oauth-refresh`, refresh: req.headers['x-refresh-token'] })
+
+    // request new tokens and set them as cookies for future requests.
+    await request(refreshOption(req.headers['x-refresh-token']), req, res)
+
     authKey = req.headers['x-access-token']
   } else {
     // if the refresh token is available, throw a 401 error so that the 401-handler can refresh the token and retry the requests.
@@ -144,11 +169,17 @@ const authorization = (req) => {
 }
 
 const deleteTokens = (req, res) => {
+  const pastDate = new Date()
+  const pastTime = -(60 * 60 * 24 * 7 * 1000) // minus 1 week
+  pastDate.setMilliseconds(pastTime)
+
   // set expiration date to the past.
-  const accessExpiredCookieOptions = Object.assign({}, accessCookieOptions)
-  accessExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
-  const refreshExpiredCookieOptions = Object.assign({}, refreshCookieOptions)
-  refreshExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
+  const accessExpiredCookieOptions = Object.assign({}, accessCookieOptions())
+  // accessExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
+  accessExpiredCookieOptions.expires = pastDate
+  const refreshExpiredCookieOptions = Object.assign({}, refreshCookieOptions())
+  // refreshExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
+  refreshExpiredCookieOptions.expires = pastDate
 
   // delete headers
   if (req.headers['x-access-token']) delete req.headers['x-access-token']

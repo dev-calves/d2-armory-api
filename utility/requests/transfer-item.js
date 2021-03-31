@@ -1,4 +1,4 @@
-const oAuthUtility = require('../oauth/oauth')
+const oauth = require('../oauth/oauth')
 
 const transferItems = async (req, res, transferToVault, membershipType, membershipId, characterId, transfers, character, vault) => {
   // request options
@@ -21,7 +21,7 @@ const transferItems = async (req, res, transferToVault, membershipType, membersh
     }
   }
 
-  const transferItemsResponse = await oAuthUtility.request(transferItemsOption, req, res)
+  const transferItemsResponse = await oauth.request(transferItemsOption, req, res)
 
   return transferItemsResponse.data
 }
