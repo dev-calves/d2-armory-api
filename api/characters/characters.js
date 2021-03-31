@@ -1,20 +1,21 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
-const { query, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
 const createError = require('http-errors')
+const express = require('express')
+const router = express.Router()
+
 const ClassEnum = require('./models/class')
 const GenderEnum = require('./models/gender')
 const RaceEnum = require('./models/race')
-const express = require('express')
-
-const router = express.Router()
+const utility = require('../../utility')
+const validations = require('../../utility/validations/query')
 
 /* GET characters */
 router.get('/characters', [
   // validations
-  query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  validations.membershipId,
+  validations.membershipType
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -46,10 +47,14 @@ module.exports = router
  * @param {*} req
  * @param {*} next
  */
-async function charactersService (req) {
+async function charactersService (req, res) {
   // request options
   const charactersOption = {
+    method: 'GET',
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: `/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`,
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY
     }
   }
@@ -57,33 +62,15 @@ async function charactersService (req) {
   // request characters
   let charactersResponse
   try {
-    charactersResponse = await request(charactersOption, req)
+    charactersResponse = await utility.oauth.request(charactersOption, req, res)
   } catch (error) {
     throw (error.response)
   }
 
   // trim content
-  const response = transform(charactersResponse)
+  const response = transform(charactersResponse.data)
 
   return response
-}
-
-/**
- *
- * @param {*} charactersOption
- * @param {*} req
- * @param {*} next
- */
-async function request (charactersOption, req) {
-  // get request for list of user's characters
-  logger.debug({ message: req.path, options: charactersOption })
-
-  const charactersResponse =
-    await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)
-
-  logger.debug({ message: req.path, bungieResponse: charactersResponse.data })
-
-  return charactersResponse.data
 }
 
 /**

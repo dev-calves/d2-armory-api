@@ -1,27 +1,24 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
-const { body, validationResult } = require('express-validator')
+const _ = require('lodash')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
 const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const oAuthUtility = require('../../utility/oauth/oauth')
-const ErrorCodesEnum = require('../../utility/models/bungie-platform-error-codes')
-const slotTypes = require('../../utility/models/equipment-slot-types')
+const utility = require('../../utility')
+const bungiePlatformErrorCodes = require('../../utility/models/bungie-platform-error-codes')
+
+module.exports = router
 
 /* POST equipments */
 router.post('/dawn', [
   // validations
-  body('equipment').notEmpty().withMessage('required parameter').isArray().withMessage('must be an array of string'),
-  body('equipment[*].itemId').isString().withMessage('must be in the form of a string')
-    .isInt().withMessage('must be an integer'),
-  body('equipment[*].equipmentSlotHash').isString().withMessage('must be in the form of a string')
-    .isInt().withMessage('must be an integer'),
-  body('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  body('transferLocation').optional().isIn(['inventory', 'vault']).withMessage('optional parameter. If declared, must be either \'vault\', \'inventory\'')
+  utility.validations.body.equipment(true, false, true),
+  utility.validations.body.membershipType,
+  utility.validations.body.membershipId,
+  utility.validations.body.characterId,
+  utility.validations.body.transferLocation
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -37,157 +34,167 @@ router.post('/dawn', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
-  return dawnService(req, req.body, req.body.membershipType, req.body.membershipId, req.body.characterId).then(dawnResponse => {
-    logger.debug({ message: req.path, dawnResponse: dawnResponse })
+  return dawnService(req, res, req.body.equipment, req.body.membershipType, req.body.membershipId, req.body.characterId, req.body.transferLocation, res)
+    .then(dawnResponse => {
+      logger.debug({ message: req.path, dawnResponse: dawnResponse })
 
-    return res.status(200).json(dawnResponse)
-  }).catch(error => {
-    next(error)
-    return
-  })
+      return res.status(200).json(dawnResponse)
+    }).catch(error => {
+      next(error)
+      return
+    })
 })
 
-module.exports = router
+async function dawnService (req, res, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
+  // used in conditionals for performance. Avoids async calls if Subclass is the only equipment needed to be dawned.
+  const vaultableEquipmentSlots = ['Kinetic_Weapons', 'Energy_Weapons', 'Power_Weapons', 'Helmet', 'Gauntlets', 'Chest_Armor', 'Leg_Armor', 'Class_Armor', 'Ghost']
+  // response message from the dawn api
+  const dawnResponse = {}
 
-async function dawnService (req, body, membershipType, membershipId, characterId) {
   // retrieve current equipment info.
-  const captureResponse = await captureService(req, membershipType, membershipId, characterId)
+  const captureResponse = await utility.requests.capture(req, res, membershipType, membershipId, characterId)
+  const captureEquipment = captureResponse.equipment
 
   // filter out capture response items out of the dawn request.
-  const filteredRequestEquipment = body.equipment.filter(dawnEquipmentItem =>
-    !captureResponse.equipment.find(captureEquipmentItem =>
-      dawnEquipmentItem.itemId === captureEquipmentItem.itemId))
+  const filteredDawnEquipment = _.cloneDeep(dawnEquipment)
 
-  // TODO: if the boolean property for allowing equipping from the vault is true
-  // TODO: make a request to check the inventory of the character.
+  for (const equipmentSlot in dawnEquipment) {
+    if (captureEquipment[equipmentSlot].length === 1) { // it is possible to have no equipment on for a slot
+      // validators check for atleast one element so we can guarantee element 0 exists for dawn equipment.
+      const dawnItemHash = dawnEquipment[equipmentSlot][0].itemHash
+      const dawnItemInstanceId = dawnEquipment[equipmentSlot][0].itemInstanceId
+      const captureItemHash = captureEquipment[equipmentSlot][0].itemHash
+      const captureItemInstanceId = captureEquipment[equipmentSlot][0].itemInstanceId
 
-  // list the itemIds from each equipment in the body
-  const itemIds = []
-  if (filteredRequestEquipment.length > 0) {
-    filteredRequestEquipment.forEach(item => { itemIds.push(item.itemId) })
+      // filter matching equipment based on itemHash and instanceId
+      if (dawnItemHash === captureItemHash && dawnItemInstanceId === captureItemInstanceId) {
+        delete filteredDawnEquipment[equipmentSlot]
+      }
+    }
   }
 
-  const clientResponse = {}
-  let bungieResponse
-  let dawnResponse = {}
+  /**
+   * transfer items from the vault to the character's inventory
+   */
+  if (transferLocation === 'vault' && _.intersection(Object.keys(filteredDawnEquipment), vaultableEquipmentSlots).length > 0) {
+    // check vault items for availability of items, then list the items needed to transfer.
+    const vaultInventory = await utility.requests.vaultInventory(req, res, membershipType, membershipId)
+    const vaultItems = vaultInventory.vault
+    const vaultItemTransfers = []
 
-  if (itemIds.length > 0) {
-    // request options
-    const equipmentsOption = {
-      method: 'POST',
-      url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/Actions/Items/EquipItems`,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': process.env.API_KEY,
-        Authorization: oAuthUtility.authorization(req)
-      },
-      data: {
-        itemIds: itemIds,
-        transferLocation: body.transferLocation,
-        membershipType: body.membershipType,
-        membershipId: body.membershipId,
-        characterId: body.characterId
+    for (const filteredDawnEquipmentSlotType in filteredDawnEquipment) {
+      for (const filteredDawnItem of filteredDawnEquipment[filteredDawnEquipmentSlotType]) {
+        if (vaultItems.some(vaultItem => vaultItem.itemHash === filteredDawnItem.itemHash && vaultItem.itemId === filteredDawnItem.itemId)) {
+          vaultItemTransfers.push(filteredDawnItem)
+        }
       }
     }
 
-    bungieResponse = await request(equipmentsOption, req)
-
-    dawnResponse = transform(bungieResponse)
-
-    // replace bungie's integer error code with a message, taken from bungie's platform site.
-    dawnResponse.equipment.forEach(item => {
-      item.equipStatus = ErrorCodesEnum(item.equipStatus, req)
-    })
-
-    clientResponse.equipmentDawned = dawnResponse
+    if (vaultItemTransfers.length > 0) {
+      const vaultTransferResponse = await utility.requests.transferItems(req, res, false, membershipType, membershipId, characterId, vaultItemTransfers, null, vaultItems)
+      dawnResponse.vaultToInventoryTransfers = vaultTransferResponse
+    }
   }
 
-  // if transferLocation is set to 'vault', transfer unequipped items to the vault
-  if (clientResponse.equipmentDawned && body && body.transferLocation === 'vault') {
-    const transferResponse = await transferItemsService(req, captureResponse, filteredRequestEquipment, membershipType, characterId)
+  /**
+   * equip all of the filtered dawn request equipment items from the character's inventory
+   */
+  if (Object.keys(filteredDawnEquipment).length > 0) {
+    const equipItemIds = []
 
-    clientResponse.transferredItems = transferResponse
+    for (const filteredDawnEquipmentSlotType in filteredDawnEquipment) {
+      filteredDawnEquipment[filteredDawnEquipmentSlotType].forEach(filteredItem => {
+        equipItemIds.push(filteredItem.itemId)
+      })
+    }
+
+    if (equipItemIds.length > 0) {
+      const equipmentResponse = await equipRequest(req, res, characterId, membershipType, equipItemIds)
+
+      dawnResponse.equipment = transform(equipmentResponse, req).equipment
+
+      dawnResponse.equipment.forEach(equip => {
+        for (const equipmentSlotType in dawnEquipment) {
+          const equipmentItem = dawnEquipment[equipmentSlotType].find(dawnItem => (equip.itemId === dawnItem.itemId))
+
+          if (equipmentItem && equipmentItem.itemHash) {
+            equip.itemHash = equipmentItem.itemHash
+          }
+        }
+      })
+    }
   }
 
-  // response
-  return clientResponse
-}
+  /**
+   * transfer items from the character's inventory to the vault.
+   */
+  if (transferLocation === 'vault' && _.intersection(Object.keys(filteredDawnEquipment), vaultableEquipmentSlots).length > 0) {
+    // assume character inventory instead of calling the service to improve response time.
+    // Bungie's equip service will always unequip items to the character inventory.
+    const characterEquipment = {}
+    const itemTransfers = []
 
-async function captureService (req, membershipType, membershipId, characterId) {
-  // request options
-  const captureOption = {
-    method: 'GET',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/equipment/capture?membershipType=${membershipType}&membershipId=${membershipId}&characterId=${characterId}`
-  }
+    for (const equipmentSlotType in filteredDawnEquipment) {
+      if (equipmentSlotType !== 'Subclass') {
+        characterEquipment[equipmentSlotType] = []
+        characterEquipment[equipmentSlotType].push(captureResponse.equipment[equipmentSlotType][0])
 
-  const captureResponse = await request(captureOption, req)
-
-  return captureResponse
-}
-
-async function transferItemsService (req, captureResponse, filteredRequestEquipment, membershipType, characterId) {
-  // filters out the subclass item and filters in items that were unequipped by the dawn request
-  // the subclass item cannot be sent to the vault.
-  const transferableEquipment = captureResponse.equipment.filter(captureItem =>
-    captureItem.equipmentSlotHash !== slotTypes.SUBCLASS && filteredRequestEquipment.some(dawnItem =>
-      captureItem.equipmentSlotHash === dawnItem.equipmentSlotHash))
-
-  let transferResponse = {
-
-  }
-
-  if (transferableEquipment.length > 0) {
-    // request options
-    const transferItemsOption = {
-      method: 'POST',
-      url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/transfer-items`,
-      headers: req.headers,
-      data: {
-        transferToVault: true,
-        equipment: transferableEquipment,
-        characterId: characterId,
-        membershipType: membershipType
+        itemTransfers.push(captureResponse.equipment[equipmentSlotType][0])
       }
     }
 
-    transferResponse = await request(transferItemsOption, req)
-  }
-
-  return transferResponse
-}
-
-async function request (equipmentOption, req) {
-  logger.debug({ message: req.path, options: equipmentOption })
-
-  const equipmentsResponse = await axios(equipmentOption)
-
-  if (equipmentOption.url.includes(process.env.SERVER_DOMAIN)) {
-    if (equipmentOption.url.includes('/transfer-items')) {
-      logger.debug({ message: req.path, transferItemsResponse: equipmentsResponse.data })
-    } else if (equipmentOption.url.includes('/capture')) {
-      logger.debug({ message: req.path, captureResponse: equipmentsResponse.data })
+    if (itemTransfers.length > 0) {
+      const characterTransferResponse = await utility.requests.transferItems(req, res, true, membershipType, membershipId, characterId, itemTransfers, { equipment: characterEquipment }, null)
+      dawnResponse.inventoryToVaultTransfers = characterTransferResponse
     }
-  } else {
-    logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
   }
 
-  return equipmentsResponse.data
+  // return response
+  return dawnResponse
 }
 
-function transform (bungieResponse) {
+const equipRequest = async (req, res, characterId, membershipType, equipItemIds) => {
+  const equipOption = {
+    method: 'POST',
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: '/Platform/Destiny2/Actions/Items/EquipItems/',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': process.env.API_KEY,
+      Authorization: await utility.oauth.authorization(req, res)
+    },
+    data: {
+      itemIds: equipItemIds,
+      characterId: characterId,
+      membershipType: membershipType
+    }
+  }
+
+  const bungieResponse = await utility.oauth.request(equipOption, req, res)
+
+  return bungieResponse.data
+}
+
+function transform (bungieResponse, req) {
+  const responseWithStatus = _.cloneDeep(bungieResponse)
+
+  responseWithStatus.Response.equipResults.forEach(item => {
+    item.equipStatus = bungiePlatformErrorCodes(item.equipStatus, req)
+  })
+
   // expression for transforming the response
   const expression = jsonata(`
   {
     "equipment": [Response.equipResults.
         {
-            "itemId": itemInstanceId,
+            "itemId": $string(itemInstanceId),
             "equipStatus": equipStatus
         }
     ]
   }`)
 
   // response transformed
-  const response = expression.evaluate(bungieResponse)
+  const response = expression.evaluate(responseWithStatus)
 
   // return
   return response

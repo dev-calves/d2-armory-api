@@ -14,7 +14,6 @@ const cookieParser = require('cookie-parser')
 
 // utilities
 const errorHandler = require('./utility/error-handler/error-handler')
-const oauthHandler = require('./utility/oauth-handler/oauth-handler')
 const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
@@ -60,9 +59,6 @@ app.use('/api',
 )
 app.get('/ngsw-worker.js', workerRouter) // provides a route for the angular service worker.
 app.use('/*', indexRouter)
-
-// handles requests with missing tokens.
-app.use(oauthHandler)
 
 // error handler needs to be placed as the last middleware.
 app.use(errorHandler)

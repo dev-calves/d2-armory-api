@@ -1,14 +1,14 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
 const express = require('express')
-const oAuthUtility = require('../../utility/oauth/oauth')
-const logger = require('../../winston')
 const router = express.Router()
+
+const utility = require('../../utility')
+const logger = require('../../winston')
 
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
   // retrieve current user's data
-  return currentUserMembershipService(req, res, next).then(response => {
+  return currentUserMembershipService(req, res).then(response => {
     logger.debug({ message: req.path, response: response })
 
     return res.status(200).json(response)
@@ -18,42 +18,28 @@ router.get('/current-user-membership', (req, res, next) => {
   })
 })
 
-async function currentUserMembershipService (req, res, next) {
+async function currentUserMembershipService (req, res) {
   // request options
   const requestOptions = {
+    method: 'GET',
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: '/Platform/User/GetMembershipsForCurrentUser/',
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: oAuthUtility.authorization(req, res)
+      Authorization: await utility.oauth.authorization(req, res)
     }
   }
 
   let currentUserMembershipResponse
   try {
-    currentUserMembershipResponse = await request(requestOptions, req, next)
+    currentUserMembershipResponse = await utility.oauth.request(requestOptions, req, res)
   } catch (error) {
     throw (error.response)
   }
-  const response = transform(currentUserMembershipResponse)
+  const response = transform(currentUserMembershipResponse.data)
 
   return response
-}
-
-/**
- *
- * @param {*} requestOptions
- * @param {*} next
- */
-async function request (requestOptions, req) {
-  logger.debug({ message: req.path, options: requestOptions })
-
-  // get current user membership request
-  const currentUserResponse =
-      await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`,
-        requestOptions)
-
-  logger.debug({ message: req.path, bungieResponse: currentUserResponse.data })
-
-  return currentUserResponse.data
 }
 
 /**

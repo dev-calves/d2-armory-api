@@ -1,19 +1,20 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
-const { query, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
 const express = require('express')
 const createError = require('http-errors')
 const router = express.Router()
 
-const equipmentSlotTypes = require('./models/capture-equipment-slot-types')
+const utility = require('../../utility')
+const jsonataModels = require('../../utility/models/jsonata')
+const validations = require('../../utility/validations/query')
 
 /* GET equipments */
 router.get('/capture', [
   // validations
-  query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  query('characterId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  validations.membershipId,
+  validations.membershipType,
+  validations.characterId
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -28,7 +29,7 @@ router.get('/capture', [
 
   logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
-  return captureService(req, req.query.membershipType, req.query.membershipId, req.query.characterId).then(response => {
+  return captureService(req, res, req.query.membershipType, req.query.membershipId, req.query.characterId).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
 
     return res.status(200).json(response)
@@ -40,81 +41,31 @@ router.get('/capture', [
 
 module.exports = router
 
-async function captureService (req, membershipType, membershipId, characterId) {
+async function captureService (req, res, membershipType, membershipId, characterId) {
   // request options
   const equipmentsOption = {
     method: 'GET',
-    url: `${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=205`,
+    baseURL: process.env.BUNGIE_DOMAIN,
+    url: `/Platform/Destiny2/${membershipType}/Profile/${membershipId}/Character/${characterId}?components=205`,
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY
     }
   }
 
   // request characters
-  const bungieResponse = await request(equipmentsOption, req)
+  const bungieResponse = await utility.oauth.request(equipmentsOption, req, res)
 
   // trim content
-  const transformedResponse = transform(bungieResponse)
-
-  // request to define the types of each equipment
-  const definitionResponse = await definitionService(req, transformedResponse)
-
-  // add slot types taken from definition to the capture response
-  for (const item of transformedResponse.equipment) {
-    item.equipmentSlotHash = definitionResponse.find(definition => item.itemReferenceHash === definition.itemReferenceHash).equipmentSlotHash
-  }
-
-  // filter out equipment not important to have captured
-  const clientResponse = {
-    equipment: transformedResponse.equipment.filter(item => equipmentSlotTypes.includes(item.equipmentSlotHash))
-  }
+  const clientResponse = transform(bungieResponse.data)
 
   return clientResponse
 }
 
-async function definitionService (req, captureResponse) {
-  const definitionData = {
-    itemReferenceHashes: []
-  }
-
-  for (const item of captureResponse.equipment) {
-    definitionData.itemReferenceHashes.push(item.itemReferenceHash)
-  }
-
-  // request options
-  const definitionOption = {
-    method: 'POST',
-    url: `${req.protocol}://${process.env.SERVER_DOMAIN}/api/definition/inventory-items`,
-    data: definitionData
-  }
-
-  const definitionResponse = await request(definitionOption, req)
-
-  return definitionResponse
-}
-
-async function request (equipmentsOption, req) {
-  logger.debug({ message: req.path, options: equipmentsOption })
-
-  const equipmentsResponse = await axios(equipmentsOption)
-
-  if (equipmentsOption.url.includes(process.env.SERVER_DOMAIN)) {
-    logger.debug({ message: req.path, definitionResponse: equipmentsResponse.data })
-  } else {
-    logger.debug({ message: req.path, bungieResponse: equipmentsResponse.data })
-  }
-
-  return equipmentsResponse.data
-}
-
 function transform (bungieResponse) {
   // expression for transforming the response
-  const expression = jsonata(`
-            {
-              "equipment": Response.equipment.data.items.[{
-                "itemId": itemInstanceId,
-                "itemReferenceHash": $string(itemHash)
-              }]
+  const expression = jsonata(`{
+              "equipment": ${jsonataModels.equipment}
             }`)
 
   // response transformed
