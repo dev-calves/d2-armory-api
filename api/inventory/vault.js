@@ -9,6 +9,9 @@ const utility = require('../../utility')
 const validations = require('../../utility/validations/query')
 const jsonataModels = require('../../utility/models/jsonata')
 
+/**
+ * returns the collection of items in the user's vault.
+ */
 /* GET vault */
 router.get('/vault', [
   // validations
@@ -40,6 +43,14 @@ router.get('/vault', [
 
 module.exports = router
 
+/**
+ * builds a request for bungie's profile api.
+ * @param {*} req Client Request.
+ * @param {*} res Server Response.
+ * @param {string} membershipType device associated with the creation of the account.
+ * @param {string} membershipId account id.
+ * @returns transformed response.
+ */
 async function inventoryService (req, res, membershipType, membershipId) {
   // request options
   const inventoryOption = {
@@ -60,6 +71,11 @@ async function inventoryService (req, res, membershipType, membershipId) {
   return clientResponse
 }
 
+/**
+ * transforms bungie's response.
+ * @param {*} bungieResponse bungie response.
+ * @returns transformed data.
+ */
 function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`

@@ -6,6 +6,9 @@ const { body, validationResult } = require('express-validator')
 const logger = require('../../winston')
 const createError = require('http-errors')
 
+/**
+ * takes a state and encrypts a hex to return to the client to then be sent to bungie when authenticating.
+ */
 /* POST encrypt */
 router.post('/encrypt', [
   body('state').notEmpty().withMessage('required parameter')
@@ -39,6 +42,11 @@ router.post('/encrypt', [
   return res.status(200).json(message)
 })
 
+/**
+ * take a hex and decrypts it back into the state the client was left in before authentication.
+ * if the hex can be decrypted successfully, then the communication betwen the client and bungie hasn't been
+ * tampered with.
+ */
 /* POST decrypt */
 router.post('/decrypt', [
   body('hex').notEmpty().withMessage('required parameter')

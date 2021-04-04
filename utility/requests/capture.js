@@ -1,5 +1,14 @@
 const oauth = require('../oauth/oauth')
 
+/**
+ * makes requests to the capture api, to be used by server apis
+ * @param {*} req client request
+ * @param {*} res server response
+ * @param {string} membershipType game-console associated with the bungie account.
+ * @param {string} membershipId account id with bungie.
+ * @param {string} characterId id for the specific destiny 2 character
+ * @returns Promise of character response holding equipment.
+ */
 async function capture (req, res, membershipType, membershipId, characterId) {
   // request options
   const captureOption = {

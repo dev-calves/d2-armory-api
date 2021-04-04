@@ -11,7 +11,11 @@ const bungiePlatformErrorCodes = require('../../utility/models/bungie-platform-e
 
 module.exports = router
 
-/* POST equipments */
+/**
+ * takes a list of equipment and equips them.
+ * if transfers are set to vault, then items will be transfered to/from the vault during the equipping.
+ */
+/* POST dawn */
 router.post('/dawn', [
   // validations
   utility.validations.body.equipment(true, false, true),
@@ -45,6 +49,19 @@ router.post('/dawn', [
     })
 })
 
+/**
+ * transfers items from a vault.
+ * builds a request to equip items.
+ * transfers items to the vault.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {*} dawnEquipment equipment taken from the body of the request.
+ * @param {string} membershipType device platform associated with the account.
+ * @param {string} membershipId account id.
+ * @param {string} characterId character id.
+ * @param {string} transferLocation inventory|vault determines where to send/retrieve items.
+ * @returns collection of status messages for each item interactions.
+ */
 async function dawnService (req, res, dawnEquipment, membershipType, membershipId, characterId, transferLocation) {
   // used in conditionals for performance. Avoids async calls if Subclass is the only equipment needed to be dawned.
   const vaultableEquipmentSlots = ['Kinetic_Weapons', 'Energy_Weapons', 'Power_Weapons', 'Helmet', 'Gauntlets', 'Chest_Armor', 'Leg_Armor', 'Class_Armor', 'Ghost']
@@ -153,6 +170,15 @@ async function dawnService (req, res, dawnEquipment, membershipType, membershipI
   return dawnResponse
 }
 
+/**
+ * request to bungie's equipitems api.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} characterId character id
+ * @param {string} membershipType device associated with the creation of the account.
+ * @param {string} equipItemIds item reference ids for each equipment.
+ * @returns transformed bungie response.
+ */
 const equipRequest = async (req, res, characterId, membershipType, equipItemIds) => {
   const equipOption = {
     method: 'POST',
@@ -175,6 +201,12 @@ const equipRequest = async (req, res, characterId, membershipType, equipItemIds)
   return bungieResponse.data
 }
 
+/**
+ * transforms the response from bungie.
+ * @param {*} bungieResponse bungie response.
+ * @param {*} req Client Request.
+ * @returns transformed response.
+ */
 function transform (bungieResponse, req) {
   const responseWithStatus = _.cloneDeep(bungieResponse)
 

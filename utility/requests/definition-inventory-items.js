@@ -1,5 +1,12 @@
 const oauth = require('../oauth/oauth')
 
+/**
+ * makes requests to the definition-inventory api for a multiple items
+ * @param {*} req client request
+ * @param {*} res server response
+ * @param {*} data body data
+ * @returns Promise of inventory item response data
+ */
 async function definitionInventoryItems (req, res, data) {
   // request options
   let inventoryItemOption = {}

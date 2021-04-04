@@ -9,7 +9,10 @@ const validations = require('../../utility/validations')
 
 const router = express.Router()
 
-/* GET Definition */
+/**
+ * returns an item's info.
+ */
+/* GET inventory-item */
 router.get('/inventory-item', [
   // validations
   validations.query.itemHash
@@ -37,7 +40,10 @@ router.get('/inventory-item', [
   })
 })
 
-/* POST Definition */
+/**
+ * returns a list of info on items.
+ */
+/* POST inventory-items */
 router.post('/inventory-items', [
   // validations
   validations.body.itemHashes
@@ -73,6 +79,13 @@ router.post('/inventory-items', [
 
 module.exports = router
 
+/**
+ * builds a request to the destinyinventoryitemdefinition.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} itemHash item reference hash, used by bungie's apis.
+ * @returns transformed response from bungie.
+ */
 async function inventoryItemService (req, res, itemHash) {
   // request options
   const definitionOption = {
@@ -100,6 +113,11 @@ async function inventoryItemService (req, res, itemHash) {
   return clientResponse
 }
 
+/**
+ * transforms bungie data.
+ * @param {*} definitionResponse bungie response.
+ * @returns transformed data.
+ */
 function transform (definitionResponse) {
   // expression for transforming the response
   const expression =

@@ -1,5 +1,13 @@
 const jwt = require('jsonwebtoken')
 
+/**
+ * middleware for taking tokens from cookies and storing them in x-headers to be
+ * used throughout the server.
+ * @param {*} req client request
+ * @param {*} res server response
+ * @param {*} next moves request to the next middlware function
+ * @returns undefined
+ */
 module.exports = function setTokenHeaders (req, res, next) {
   // set access header
   if (!req.headers['x-access-token'] && req.cookies['access-token']) { // req.cookies will be empty when axios makes requests.

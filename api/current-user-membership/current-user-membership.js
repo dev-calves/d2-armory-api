@@ -5,6 +5,9 @@ const router = express.Router()
 const utility = require('../../utility')
 const logger = require('../../winston')
 
+/**
+ * retrieves membership info for the account authenticated with bungie's oauth token.
+ */
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
   // retrieve current user's data
@@ -18,6 +21,12 @@ router.get('/current-user-membership', (req, res, next) => {
   })
 })
 
+/**
+ * builds a request to be sent to bungie's getmembershipsforcurrentuser api
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @returns transformed response from bungie
+ */
 async function currentUserMembershipService (req, res) {
   // request options
   const requestOptions = {
@@ -31,20 +40,17 @@ async function currentUserMembershipService (req, res) {
     }
   }
 
-  let currentUserMembershipResponse
-  try {
-    currentUserMembershipResponse = await utility.oauth.request(requestOptions, req, res)
-  } catch (error) {
-    throw (error.response)
-  }
+  const currentUserMembershipResponse = await utility.oauth.request(requestOptions, req, res)
+
   const response = transform(currentUserMembershipResponse.data)
 
   return response
 }
 
 /**
- *
- * @param {*} currentUserResponse
+ * transforms the response from bungie for the client.
+ * @param {*} currentUserResponse bungie response
+ * @returns transformed response.
  */
 function transform (currentUserResponse) {
   // expression to transform the response
