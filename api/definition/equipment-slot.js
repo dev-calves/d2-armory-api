@@ -7,7 +7,10 @@ const router = express.Router()
 
 const utility = require('../../utility')
 
-/* GET Definition */
+/**
+ * returns the equipment slot type info of an item.
+ */
+/* GET equipment-slot */
 router.get('/equipment-slot', [
   // validations
   query().custom((value, { req }) => {
@@ -68,7 +71,10 @@ router.get('/equipment-slot', [
   }
 })
 
-/* POST Definition */
+/**
+ * returns the equipment slot type of a list of items.
+ */
+/* POST equipment-slots */
 router.post('/equipment-slots', [
   // validations
   utility.validations.body.itemHashes
@@ -104,6 +110,15 @@ router.post('/equipment-slots', [
 
 module.exports = router
 
+/**
+ * builds a request to bungie's destinyequipmentslotdefinition api
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} equipmentSlotHash reference hash for an equipment slot type, used by bungie's apis.
+ * @param {string} itemHash item reference hash for items, used by bungie's apis.
+ * @param {string} itemName name of the item, determined by the definition service.
+ * @returns response for the client
+ */
 async function equipmentSlotService (req, res, equipmentSlotHash, itemHash, itemName) {
   const equipmentSlotDefinitionOption = {
     method: 'GET',
@@ -132,6 +147,11 @@ async function equipmentSlotService (req, res, equipmentSlotHash, itemHash, item
   return clientResponse
 }
 
+/**
+ * returns a transformed response for the client.
+ * @param {*} definitionResponse bungie response.
+ * @returns transformed data.
+ */
 function transform (definitionResponse) {
   // expression for transforming the response
   const expression =

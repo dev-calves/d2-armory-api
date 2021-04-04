@@ -4,6 +4,10 @@ const express = require('express')
 
 const router = express.Router()
 
+/**
+ * requests new tokens and stores them in cookies on the client.
+ */
+/* GET oauth/access */
 router.get('/oauth/access', (req, res, next) => {
   logger.debug({ message: req.path, headers: req.headers, request: req.headers.code })
 
@@ -20,6 +24,10 @@ router.get('/oauth/access', (req, res, next) => {
   })
 })
 
+/**
+ * lets the client know if a refresh token is still good.
+ */
+/* GET /oauth/refresh-status */
 router.get('/oauth/refresh-status', (req, res, next) => {
   let message
 
@@ -34,6 +42,10 @@ router.get('/oauth/refresh-status', (req, res, next) => {
   return res.status(200).json(message)
 })
 
+/**
+ * deletes token cookies to allow the client to log out of the user's account.
+ */
+/* GET /oauth/delete */
 router.get('/oauth/delete', (req, res, next) => {
   // delete tokens.
   utility.oauth.deleteTokens(req, res)

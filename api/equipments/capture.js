@@ -9,7 +9,10 @@ const utility = require('../../utility')
 const jsonataModels = require('../../utility/models/jsonata')
 const validations = require('../../utility/validations/query')
 
-/* GET equipments */
+/**
+ * returns the current equipment worn by the specified character.S
+ */
+/* GET capture */
 router.get('/capture', [
   // validations
   validations.membershipId,
@@ -41,6 +44,15 @@ router.get('/capture', [
 
 module.exports = router
 
+/**
+ * builds the request for the bungie profile api
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} membershipType device platform the account is tied too.
+ * @param {string} membershipId account id.
+ * @param {string} characterId character id.
+ * @returns transformed response from bungie.
+ */
 async function captureService (req, res, membershipType, membershipId, characterId) {
   // request options
   const equipmentsOption = {
@@ -62,6 +74,11 @@ async function captureService (req, res, membershipType, membershipId, character
   return clientResponse
 }
 
+/**
+ * transforms data from bungie.
+ * @param {*} bungieResponse Bungie response.
+ * @returns transformed response.
+ */
 function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`{

@@ -11,6 +11,9 @@ const RaceEnum = require('./models/race')
 const utility = require('../../utility')
 const validations = require('../../utility/validations/query')
 
+/**
+ * retrieves a list of characters for an account.
+ */
 /* GET characters */
 router.get('/characters', [
   // validations
@@ -43,9 +46,10 @@ router.get('/characters', [
 module.exports = router
 
 /**
- *
- * @param {*} req
- * @param {*} next
+ * builds a request to be sent to bungie's profile api.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @returns response to client
  */
 async function charactersService (req, res) {
   // request options
@@ -74,8 +78,9 @@ async function charactersService (req, res) {
 }
 
 /**
- *
- * @param {*} charactersResponse
+ * transforms the bungie response into the client response.
+ * @param {*} charactersResponse bungie response from the profile api
+ * @returns list of characters
  */
 function transform (charactersResponse) {
   // expression for transforming the response

@@ -9,6 +9,9 @@ const utility = require('../../utility')
 const jsonataModels = require('../../utility/models/jsonata')
 const validations = require('../../utility/validations/query')
 
+/**
+ * returns the list of items in the character's inventory.
+ */
 /* GET character */
 router.get('/character', [
   // validations
@@ -41,6 +44,15 @@ router.get('/character', [
 
 module.exports = router
 
+/**
+ * returns a transformed response from bungie.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} membershipType device associated with the creation of the account.
+ * @param {string} membershipId account id.
+ * @param {string} characterId character id.
+ * @returns transformed response from bungie.
+ */
 async function inventoryService (req, res, membershipType, membershipId, characterId) {
   // request options
   const inventoryOption = {
@@ -61,6 +73,11 @@ async function inventoryService (req, res, membershipType, membershipId, charact
   return clientResponse
 }
 
+/**
+ * transforms the response from bungie.
+ * @param {*} bungieResponse bungie response.
+ * @returns transformed data.
+ */
 function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata(`{

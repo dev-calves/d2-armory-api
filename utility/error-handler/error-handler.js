@@ -1,5 +1,13 @@
 const logger = require('../../winston')
 
+/**
+ * middleware to handle server errors.
+ * @param {*} error error object/http-errors
+ * @param {*} req client request
+ * @param {*} res server response
+ * @param {*} next moves to the next middleware, required to be provided, express requirements.
+ * @returns undefined
+ */
 module.exports = function errorHandler (error, req, res, next) {
   const message = {}
 

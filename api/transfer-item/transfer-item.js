@@ -9,6 +9,9 @@ const router = express.Router()
 
 const utility = require('../../utility')
 
+/**
+ * transfers an item to/from the vault and character inventory.
+ */
 /* POST transfer-item */
 router.post('/transfer-item', [
   // validations
@@ -52,6 +55,9 @@ router.post('/transfer-item', [
   })
 })
 
+/**
+ * transfers a list of items to/from the vault/character inventory.
+ */
 /* POST transfer-items */
 router.post('/transfer-items', [
   // validations
@@ -106,6 +112,13 @@ router.post('/transfer-items', [
 
 module.exports = router
 
+/**
+ * checks the inventories before making transfers.
+ * @param {*} req Client Request.
+ * @param {*} res Server Response.
+ * @param {[object]} transfers list of itemId and itemHash.
+ * @returns status message for the transfer.
+ */
 const transferSingleItemService = async (req, res, transfers) => {
   // check if items are available to be transfered.
   if (req.body.transferToVault) {
@@ -143,6 +156,13 @@ const transferSingleItemService = async (req, res, transfers) => {
   }
 }
 
+/**
+ * takes a list of items and checks the inventories for them, before making transfers.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {[object]} transfers list of itemId and itemhash
+ * @returns status messages to be sent to client.
+ */
 const transferMultipleItemService = async (req, res, transfers) => {
   // check if items are available to be transfered.
   if (req.body.transferToVault) {
@@ -197,6 +217,17 @@ const transferMultipleItemService = async (req, res, transfers) => {
   return transferResponses
 }
 
+/**
+ * build request to bungie's transferitem api
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} membershipType device associated with account creation.
+ * @param {string} characterId character id
+ * @param {boolean} transferToVault target location of transfer
+ * @param {string} itemId item id
+ * @param {string} itemHash item reference hash
+ * @returns transformed response
+ */
 async function transferItemRequest (req, res, membershipType, characterId, transferToVault, itemId, itemHash) {
   // request options
   const transferItemOption = {
@@ -227,6 +258,16 @@ async function transferItemRequest (req, res, membershipType, characterId, trans
   return clientResponse
 }
 
+/**
+ * checks if the item can be found in the character's inventory.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} membershipType device associated with account creation.
+ * @param {string} membershipId account id
+ * @param {string} characterId character id
+ * @param {[object]} transfers list of itemId and itemHash
+ * @param {*} character character response.
+ */
 const checkCharacterInventory = async (req, res, membershipType, membershipId, characterId, transfers, character) => {
   let equipment
 
@@ -251,6 +292,15 @@ const checkCharacterInventory = async (req, res, membershipType, membershipId, c
   }
 }
 
+/**
+ * checks if the item can be found in the vault
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @param {string} membershipType device associated with account creation.
+ * @param {string} membershipId account id
+ * @param {[object]} transfers list of itemId and itemHash
+ * @param {*} vaultItems vault response
+ */
 const checkVaultInventory = async (req, res, membershipType, membershipId, transfers, vaultItems) => {
   let vaultInventory
 
@@ -272,6 +322,11 @@ const checkVaultInventory = async (req, res, membershipType, membershipId, trans
   }
 }
 
+/**
+ * transforms bungie's response.
+ * @param {*} bungieResponse bungie response.
+ * @returns transformed data.
+ */
 function transform (bungieResponse) {
   // expression for transforming the response
   const expression = jsonata('{ "transferStatus": **.ErrorStatus }')

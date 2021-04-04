@@ -5,6 +5,10 @@ const createError = require('http-errors')
 const jwt = require('jsonwebtoken')
 const logger = require('../../winston')
 
+/**
+ * options for requests to bungie for access/refresh tokens.
+ * @returns options object
+ */
 const accessCookieOptions = () => {
   const expireDate = new Date()
   const now = expireDate.getMilliseconds()
@@ -20,6 +24,10 @@ const accessCookieOptions = () => {
   }
 }
 
+/**
+ * options for requests to bungie to receive new access/refresh tokens from a given refresh token.
+ * @returns options object
+ */
 const refreshCookieOptions = () => {
   const expireDate = new Date()
   const now = expireDate.getMilliseconds()
@@ -35,6 +43,11 @@ const refreshCookieOptions = () => {
   }
 }
 
+/**
+ * body for access/refresh token requests
+ * @param {string} code given by bungie to acquire new tokens
+ * @returns body for access-token requests for bungie.
+ */
 const tokensBody = (code) => { // used to acquire access and refresh tokens
   const body = {
     grant_type: process.env.OAUTH_ACCESS_GRANT_TYPE,
@@ -46,6 +59,11 @@ const tokensBody = (code) => { // used to acquire access and refresh tokens
   return body
 }
 
+/**
+ * body for token requests using a given refresh token.
+ * @param {string} refresh token used to recieve new tokens from bungie.
+ * @returns body for refresh-token requests for bungie.
+ */
 const refreshBody = (refresh) => { // used to acquire access token
   const body = {
     grant_type: process.env.OAUTH_REFRESH_GRANT_TYPE,
@@ -57,6 +75,11 @@ const refreshBody = (refresh) => { // used to acquire access token
   return body
 }
 
+/**
+ * encrypts tokens. jsonwebtoken defaults to HMAC SHA256
+ * @param {string} token access or refresh token
+ * @returns encrypted string
+ */
 const signCookies = (token) => {
   const signed = jwt.sign({
     token: token
@@ -65,6 +88,12 @@ const signCookies = (token) => {
   return signed
 }
 
+/**
+ * the option used for token requests. the data is qs.stringified to
+ * satisfy the content-type in axios requests.
+ * @param {string} code given by bungie to authorize token generation
+ * @returns option object
+ */
 const tokensOption = (code) => {
   const option = {
     method: 'POST',
@@ -79,6 +108,12 @@ const tokensOption = (code) => {
   return option
 }
 
+/**
+ * the option used for token requests with using a given refresh token.
+ * the data is qs.stringified to satisfy the content-type in axios requests.
+ * @param {string} refresh refresh token taken from a cookie.
+ * @returns option object
+ */
 const refreshOption = (refresh) => {
   const option = {
     method: 'POST',
@@ -93,6 +128,12 @@ const refreshOption = (refresh) => {
   return option
 }
 
+/**
+ * sets cookies into the server response to be stored by the client
+ * @param {*} response bungie response
+ * @param {*} req client request
+ * @param {*} res server response
+ */
 const setTokenCookies = (response, req, res) => {
   if (response && response.access_token && response.refresh_token) {
     // set x-headers
@@ -105,6 +146,11 @@ const setTokenCookies = (response, req, res) => {
   }
 }
 
+/**
+ * sets bungie cookies to the server response
+ * @param {*} axiosResponse general bungie response.
+ * @param {*} res server response.
+ */
 const setCookies = (axiosResponse, res) => {
   if (axiosResponse.headers['set-cookie']) { // axios has cookie/s
     if (res.get('set-cookie')) { // res has cookie/s
@@ -147,6 +193,14 @@ const setCookies = (axiosResponse, res) => {
   }
 }
 
+/**
+ * sets the Authorization header using Bearer and a given access tokens.
+ * refreshes tokens if the access token has expired.
+ * creates a 401 error to be sent to the client if both tokens have expired.
+ * @param {*} req client request
+ * @param {*} res server response
+ * @returns string
+ */
 const authorization = async (req, res) => {
   let authKey = ''
 
@@ -168,6 +222,11 @@ const authorization = async (req, res) => {
   return `Bearer ${authKey}`
 }
 
+/**
+ * deletes token headers and sets the cookies to be deleted by the client.
+ * @param {*} req client request
+ * @param {*} res server response
+ */
 const deleteTokens = (req, res) => {
   const pastDate = new Date()
   const pastTime = -(60 * 60 * 24 * 7 * 1000) // minus 1 week
@@ -175,10 +234,8 @@ const deleteTokens = (req, res) => {
 
   // set expiration date to the past.
   const accessExpiredCookieOptions = Object.assign({}, accessCookieOptions())
-  // accessExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
   accessExpiredCookieOptions.expires = pastDate
   const refreshExpiredCookieOptions = Object.assign({}, refreshCookieOptions())
-  // refreshExpiredCookieOptions.expires = new Date(Date.now() - (60 * 60 * 24 * 7 * 1000)) // minus 1 week
   refreshExpiredCookieOptions.expires = pastDate
 
   // delete headers
@@ -191,6 +248,13 @@ const deleteTokens = (req, res) => {
   // TODO: may need to clear member id from oauthResponse.
 }
 
+/**
+ * requests used by server apis
+ * @param {object} option option for the request
+ * @param {*} req client request
+ * @param {*} res server response
+ * @returns response data taken from axios requests
+ */
 const request = async (option, req, res) => {
   logger.debug({ message: req.path, options: option })
 
