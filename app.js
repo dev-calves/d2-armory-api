@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
 if (process.env.NODE_ENV !== 'production') {
   var cors = require('cors')
 }
+
 const express = require('express')
 const path = require('path')
 const morgan = require('morgan')
