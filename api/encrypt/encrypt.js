@@ -12,7 +12,6 @@ const createError = require('http-errors')
 /* POST encrypt */
 router.post('/encrypt', [
   body('state').notEmpty().withMessage('required parameter')
-    .isIn(['inventory', 'vault']).withMessage('state only accepted with \'inventory\' or \'vault\'')
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
