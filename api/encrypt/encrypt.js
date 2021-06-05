@@ -4,12 +4,15 @@ const express = require('express')
 const router = express.Router()
 const { body, validationResult } = require('express-validator')
 const logger = require('../../winston')
+const createError = require('http-errors')
 
+/**
+ * takes a state and encrypts a hex to return to the client to then be sent to bungie when authenticating.
+ */
 /* POST encrypt */
 router.post('/encrypt', [
   body('state').notEmpty().withMessage('required parameter')
-    .isIn(['inventory', 'vault']).withMessage('state only accepted with \'inventory\' or \'vault\'')
-], (req, res) => {
+], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -17,10 +20,11 @@ router.post('/encrypt', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   // Encrypt
   const b64 = CryptoJS.AES.encrypt(req.body.state, process.env.ENCRYPT_SECRET).toString()
@@ -37,11 +41,16 @@ router.post('/encrypt', [
   return res.status(200).json(message)
 })
 
+/**
+ * take a hex and decrypts it back into the state the client was left in before authentication.
+ * if the hex can be decrypted successfully, then the communication betwen the client and bungie hasn't been
+ * tampered with.
+ */
 /* POST decrypt */
 router.post('/decrypt', [
   body('hex').notEmpty().withMessage('required parameter')
     .isHexadecimal('hex').withMessage('hex property must be a hexidecimal value')
-], (req, res) => {
+], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -49,10 +58,11 @@ router.post('/decrypt', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
-  logger.debug({ message: req.path, request: req.body })
+  logger.debug({ message: req.path, headers: req.headers, request: req.body })
 
   // parse hex from string.
   const reb64 = CryptoJS.enc.Hex.parse(req.body.hex)

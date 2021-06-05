@@ -1,19 +1,24 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
-const { query, validationResult } = require('express-validator')
+const { validationResult } = require('express-validator')
 const logger = require('../../winston')
+const createError = require('http-errors')
+const express = require('express')
+const router = express.Router()
+
 const ClassEnum = require('./models/class')
 const GenderEnum = require('./models/gender')
 const RaceEnum = require('./models/race')
-const express = require('express')
+const utility = require('../../utility')
+const validations = require('../../utility/validations/query')
 
-const router = express.Router()
-
+/**
+ * retrieves a list of characters for an account.
+ */
 /* GET characters */
 router.get('/characters', [
   // validations
-  query('membershipId').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer'),
-  query('membershipType').notEmpty().withMessage('required parameter').isInt().withMessage('must be an integer')
+  validations.membershipId,
+  validations.membershipType
 ], (req, res, next) => {
   // validation error response
   const errors = validationResult(req)
@@ -22,10 +27,11 @@ router.get('/characters', [
 
     logger.warn({ message: req.path, bad: message })
 
-    return res.status(422).json(message)
+    next(createError(422, message))
+    return
   }
 
-  logger.debug({ message: req.path, request: req.query })
+  logger.debug({ message: req.path, headers: req.headers, request: req.query })
 
   return charactersService(req, res).then(response => {
     logger.debug({ message: req.path, clientResponse: response })
@@ -40,14 +46,19 @@ router.get('/characters', [
 module.exports = router
 
 /**
- *
- * @param {*} req
- * @param {*} next
+ * builds a request to be sent to bungie's profile api.
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @returns response to client
  */
-async function charactersService (req) {
+async function charactersService (req, res) {
   // request options
   const charactersOption = {
+    method: 'GET',
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: `/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`,
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY
     }
   }
@@ -55,38 +66,21 @@ async function charactersService (req) {
   // request characters
   let charactersResponse
   try {
-    charactersResponse = await request(charactersOption, req)
+    charactersResponse = await utility.oauth.request(charactersOption, req, res)
   } catch (error) {
     throw (error.response)
   }
 
   // trim content
-  const response = transform(charactersResponse)
+  const response = transform(charactersResponse.data)
 
   return response
 }
 
 /**
- *
- * @param {*} charactersOption
- * @param {*} req
- * @param {*} next
- */
-async function request (charactersOption, req) {
-  // get request for list of user's characters
-  logger.debug({ message: req.path, options: charactersOption })
-
-  const charactersResponse =
-    await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/Destiny2/${req.query.membershipType}/Profile/${req.query.membershipId}/?components=200`, charactersOption)
-
-  logger.debug({ message: req.path, bungieResponse: charactersResponse.data })
-
-  return charactersResponse.data
-}
-
-/**
- *
- * @param {*} charactersResponse
+ * transforms the bungie response into the client response.
+ * @param {*} charactersResponse bungie response from the profile api
+ * @returns list of characters
  */
 function transform (charactersResponse) {
   // expression for transforming the response

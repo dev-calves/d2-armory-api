@@ -1,5 +1,13 @@
 const logger = require('../../winston')
 
+/**
+ * middleware to handle server errors.
+ * @param {*} error error object/http-errors
+ * @param {*} req client request
+ * @param {*} res server response
+ * @param {*} next moves to the next middleware, required to be provided, express requirements.
+ * @returns undefined
+ */
 module.exports = function errorHandler (error, req, res, next) {
   const message = {}
 
@@ -19,23 +27,29 @@ module.exports = function errorHandler (error, req, res, next) {
   if (message.status >= 400) {
     if (error.message && error.message.data) {
       message.message = error.message.data
-    } else if (error.message) {
-      message.message = error.message
-    } else if (error.response && error.response.status) {
-      message.message = error.response.status
+    } else if (error.response && error.response.data) {
+      message.message = error.response.data
     } else if (error.response) {
       message.message = error.response
     } else if (error.data) {
       message.message = error.data
     } else {
-      message.message = error
+      message.message = error.message
+      message.errors = error.errors || error
+    }
+
+    message.config = {
+      path: req.path,
+      method: req.method,
+      query: req.query,
+      body: req.body
     }
 
     logger.error({ message: req.path, error: message })
 
     return res.status(message.status).json(message)
   } else {
-    // this response will respond to the oauth handler's request
+    // this response will respond for the oauth handler's requests
     return res.status(message.status).json(message)
   }
 }

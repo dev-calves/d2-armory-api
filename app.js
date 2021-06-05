@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== 'production') {
 if (process.env.NODE_ENV !== 'production') {
   var cors = require('cors')
 }
+
 const express = require('express')
 const path = require('path')
 const morgan = require('morgan')
@@ -14,7 +15,6 @@ const cookieParser = require('cookie-parser')
 
 // utilities
 const errorHandler = require('./utility/error-handler/error-handler')
-const oauthHandler = require('./utility/oauth-handler/oauth-handler')
 const setTokenHeaders = require('./utility/token-headers/token-headers')
 
 // references to apis.
@@ -25,6 +25,9 @@ const charactersController = require('./api/characters/characters')
 const encryptController = require('./api/encrypt/encrypt')
 const oauthController = require('./api/oauth/oauth')
 const equipmentsController = require('./api/equipments/equipments')
+const definitionController = require('./api/definition/definition')
+const transferItemController = require('./api/transfer-item/transfer-item')
+const inventoryController = require('./api/inventory/inventory')
 
 // create express app
 const app = express()
@@ -50,13 +53,13 @@ app.use('/api',
   charactersController,
   encryptController,
   oauthController,
-  equipmentsController
+  equipmentsController,
+  definitionController,
+  transferItemController,
+  inventoryController
 )
-app.get('/ngsw-worker.js', workerRouter)
+app.get('/ngsw-worker.js', workerRouter) // provides a route for the angular service worker.
 app.use('/*', indexRouter)
-
-// handles requests with missing tokens.
-app.use(oauthHandler)
 
 // error handler needs to be placed as the last middleware.
 app.use(errorHandler)

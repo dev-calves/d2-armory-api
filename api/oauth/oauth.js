@@ -1,14 +1,18 @@
 const logger = require('../../winston')
-const OAuthUtility = require('../../utility/oauth/oauth')
+const utility = require('../../utility')
 const express = require('express')
 
 const router = express.Router()
 
+/**
+ * requests new tokens and stores them in cookies on the client.
+ */
+/* GET oauth/access */
 router.get('/oauth/access', (req, res, next) => {
-  logger.debug({ message: req.path, request: req.headers.code })
+  logger.debug({ message: req.path, headers: req.headers, request: req.headers.code })
 
   // request to receive tokens.
-  return OAuthUtility.oauthRequest(OAuthUtility.tokensBody(req.headers.code), req, res).then(response => {
+  return utility.oauth.request(utility.oauth.tokensOption(req.headers.code), req, res).then(response => {
     // send ok response
     const message = { message: 'tokens recieved.' }
 
@@ -20,7 +24,11 @@ router.get('/oauth/access', (req, res, next) => {
   })
 })
 
-router.get('/oauth/refresh', (req, res, next) => {
+/**
+ * lets the client know if a refresh token is still good.
+ */
+/* GET /oauth/refresh-status */
+router.get('/oauth/refresh-status', (req, res, next) => {
   let message
 
   if (req.headers['x-refresh-token']) {
@@ -34,9 +42,13 @@ router.get('/oauth/refresh', (req, res, next) => {
   return res.status(200).json(message)
 })
 
+/**
+ * deletes token cookies to allow the client to log out of the user's account.
+ */
+/* GET /oauth/delete */
 router.get('/oauth/delete', (req, res, next) => {
   // delete tokens.
-  OAuthUtility.deleteTokens(req, res)
+  utility.oauth.deleteTokens(req, res)
 
   // send ok response
   const message = { message: 'tokens deleted.' }

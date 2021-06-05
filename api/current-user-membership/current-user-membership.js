@@ -1,14 +1,17 @@
-const axios = require('axios')
 const jsonata = require('jsonata')
 const express = require('express')
-const OAuthUtility = require('../../utility/oauth/oauth')
-const logger = require('../../winston')
 const router = express.Router()
 
+const utility = require('../../utility')
+const logger = require('../../winston')
+
+/**
+ * retrieves membership info for the account authenticated with bungie's oauth token.
+ */
 /* GET current-user-membership */
 router.get('/current-user-membership', (req, res, next) => {
   // retrieve current user's data
-  return currentUserMembershipService(req, res, next).then(response => {
+  return currentUserMembershipService(req, res).then(response => {
     logger.debug({ message: req.path, response: response })
 
     return res.status(200).json(response)
@@ -18,55 +21,44 @@ router.get('/current-user-membership', (req, res, next) => {
   })
 })
 
-async function currentUserMembershipService (req, res, next) {
+/**
+ * builds a request to be sent to bungie's getmembershipsforcurrentuser api
+ * @param {*} req Client Request
+ * @param {*} res Server Response
+ * @returns transformed response from bungie
+ */
+async function currentUserMembershipService (req, res) {
   // request options
   const requestOptions = {
+    method: 'GET',
+    baseURL: `${process.env.BUNGIE_DOMAIN}`,
+    url: '/Platform/User/GetMembershipsForCurrentUser/',
     headers: {
+      'Content-Type': 'application/json',
       'X-API-Key': process.env.API_KEY,
-      Authorization: OAuthUtility.authorization(req, res)
+      Authorization: await utility.oauth.authorization(req, res)
     }
   }
 
-  let currentUserMembershipResponse
-  try {
-    currentUserMembershipResponse = await request(requestOptions, req, next)
-  } catch (error) {
-    throw (error.response)
-  }
-  const response = transform(currentUserMembershipResponse)
+  const currentUserMembershipResponse = await utility.oauth.request(requestOptions, req, res)
+
+  const response = transform(currentUserMembershipResponse.data)
 
   return response
 }
 
 /**
- *
- * @param {*} requestOptions
- * @param {*} next
- */
-async function request (requestOptions, req) {
-  logger.debug({ message: req.path, options: requestOptions })
-
-  // get current user membership request
-  const currentUserResponse =
-      await axios.get(`${process.env.BUNGIE_DOMAIN}/Platform/User/GetMembershipsForCurrentUser/`,
-        requestOptions)
-
-  logger.debug({ message: req.path, bungieResponse: currentUserResponse.data })
-
-  return currentUserResponse.data
-}
-
-/**
- *
- * @param {*} currentUserResponse
+ * transforms the response from bungie for the client.
+ * @param {*} currentUserResponse bungie response
+ * @returns transformed response.
  */
 function transform (currentUserResponse) {
   // expression to transform the response
   const expression = jsonata(`{
-        "membershipId": (Response.primaryMembershipId? Response.primaryMembershipId : Response.destinyMemberships[0].membershipId),
-        "membershipType": (Response.primaryMembershipId? Response.destinyMemberships[membershipId=$$.Response.primaryMembershipId].membershipType : Response.destinyMemberships[0].membershipType) ,
-        "displayName": (Response.primaryMembershipId? Response.destinyMemberships[membershipId=$$.Response.primaryMembershipId].displayName : Response.destinyMemberships[0].displayName)
-    }`)
+    "membershipId": (Response.primaryMembershipId? Response.primaryMembershipId : Response.destinyMemberships[0].membershipId),
+    "membershipType": $string((Response.primaryMembershipId? Response.destinyMemberships[membershipId=$$.Response.primaryMembershipId].membershipType : Response.destinyMemberships[0].membershipType)),
+    "displayName": (Response.primaryMembershipId? Response.destinyMemberships[membershipId=$$.Response.primaryMembershipId].displayName : Response.destinyMemberships[0].displayName)
+  }`)
 
   // transform response
   const response = expression.evaluate(currentUserResponse)
