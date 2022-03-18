@@ -21,7 +21,7 @@ describe('oauth handler', () => {
 
     process.env.SERVER_DOMAIN = 'test.com'
 
-    middlewareFunction = require('./oauth-handler')
+    middlewareFunction = require('./x-oauth-handler')
 
     routeHandler.get('/test', (req, res, next) => {
       next(createError(routeStatus, 'boo boos were done'), req, res)
@@ -47,7 +47,7 @@ describe('oauth handler', () => {
     nock.cleanAll()
   })
 
-  test('should send non 401 errors to an error-handler', async (done) => {
+  xtest('should send non 401 errors to an error-handler', async () => {
     const request = httpMocks.createRequest({
       method: 'GET',
       url: '/test'
@@ -60,7 +60,6 @@ describe('oauth handler', () => {
       const routeResponse = response._getJSONData()
       expect(response._getStatusCode()).toBe(500)
       expect(routeResponse.message).toEqual('boo boos were done')
-      done()
     })
 
     app(request, response)
@@ -71,7 +70,7 @@ describe('oauth handler', () => {
       routeStatus = 401
     })
 
-    test('should send 401 errors to an error-handler when no tokens are available', async (done) => {
+    xtest('should send 401 errors to an error-handler when no tokens are available', async () => {
       const request = httpMocks.createRequest({
         method: 'GET',
         url: '/test'
@@ -84,13 +83,12 @@ describe('oauth handler', () => {
         const routeResponse = response._getJSONData()
         expect(response._getStatusCode()).toBe(401)
         expect(routeResponse.message).toContain('User must be logged in to use this service.')
-        done()
       })
 
       app(request, response)
     })
 
-    test('should refresh tokens when the refresh header is available', async (done) => {
+    xtest('should refresh tokens when the refresh header is available', async () => {
       jest.setTimeout(15000) // this test needs more time to evaluate because of the multiple async events.
 
       const request = httpMocks.createRequest({
@@ -113,7 +111,6 @@ describe('oauth handler', () => {
         const routeResponse = response._getJSONData()
         expect(response._getStatusCode()).toBe(200)
         expect(routeResponse).toEqual({ tokens: '123' })
-        done()
       })
 
       app(request, response)

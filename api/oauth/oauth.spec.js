@@ -22,7 +22,7 @@ describe('Oauth API', () => {
         jest.resetModules()
       })
 
-      test('should respond with an ok status when the tokens are retrieved', async (done) => {
+      xtest('should respond with an ok status when the tokens are retrieved', async (done) => {
         response.on('end', function () {
           const routeResponse = response._getJSONData()
           expect(routeResponse).toBeDefined()
@@ -52,7 +52,7 @@ describe('Oauth API', () => {
         jest.resetModules()
       })
 
-      test('should respond with a refresh status of true when the header exists', async (done) => {
+      xtest('should respond with a refresh status of true when the header exists', async (done) => {
         response.on('end', function () {
           const routeResponse = response._getJSONData()
           expect(routeResponse).toBeDefined()
@@ -78,7 +78,7 @@ describe('Oauth API', () => {
         jest.resetModules()
       })
 
-      test('should respond with a refresh status of false when the header does not exist', async (done) => {
+      xtest('should respond with a refresh status of false when the header does not exist', async (done) => {
         response.on('end', function () {
           const routeResponse = response._getJSONData()
           expect(routeResponse).toBeDefined()
@@ -105,7 +105,7 @@ describe('Oauth API', () => {
         jest.resetModules()
       })
 
-      test('should respond with an ok status when the tokens are deleted', async (done) => {
+      xtest('should respond with an ok status when the tokens are deleted', async (done) => {
         response.on('end', function () {
           const routeResponse = response._getJSONData()
           expect(routeResponse).toBeDefined()

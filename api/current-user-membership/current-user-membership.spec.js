@@ -36,14 +36,13 @@ describe('Current User Membership API', () => {
       process.env = OLD_ENV // restore old env
     })
 
-    test('should respond with the current user\'s primary account info', async (done) => {
+    xtest('should respond with the current user\'s primary account info', async () => {
       jest.setTimeout(50000)
 
       response.on('end', function () {
         const routeResponse = response._getJSONData()
         expect(routeResponse).toBeTruthy()
         expect(routeResponse).toEqual(currentUserMembershipResponse)
-        done()
       })
 
       routeHandler(request, response)

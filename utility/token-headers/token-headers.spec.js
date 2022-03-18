@@ -52,7 +52,7 @@ describe('token headers', () => {
     app(request, response)
   })
 
-  test('should not have x-headers placed into the request without cookies', async (done) => {
+  test('should not have x-headers placed into the request without cookies', async () => {
     const request = httpMocks.createRequest({
       method: 'GET',
       url: '/test'
@@ -64,7 +64,6 @@ describe('token headers', () => {
     response.on('end', function () {
       const routeResponse = response._getJSONData()
       expect(routeResponse).toEqual({ error: 'bad thing happened.' })
-      done()
     })
 
     app(request, response)

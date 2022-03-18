@@ -18,7 +18,7 @@ describe('error handler', () => {
     jest.resetModules()
   })
 
-  test('should handle errors from a route', async (done) => {
+  test('should handle errors from a route', async () => {
     const request = httpMocks.createRequest({
       method: 'GET',
       url: '/test'
@@ -31,7 +31,6 @@ describe('error handler', () => {
       const routeResponse = response._getJSONData()
       expect(response._getStatusCode()).toBe(500)
       expect(routeResponse.message).toEqual('boo boos were done')
-      done()
     })
 
     app(request, response)
