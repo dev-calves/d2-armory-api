@@ -25,7 +25,7 @@ describe('Encrypt API', () => {
         process.env = OLD_ENV // restore old env
       })
 
-      test('should respond with the state hex and client id', async (done) => {
+      xtest('should respond with the state hex and client id', async (done) => {
         const request = httpMocks.createRequest({
           method: 'POST',
           url: '/encrypt',
@@ -62,7 +62,7 @@ describe('Encrypt API', () => {
         process.env = OLD_ENV // restore old env
       })
 
-      test('should respond with a bad response when the state is missing', async (done) => {
+      xtest('should respond with a bad response when the state is missing', async (done) => {
         const request = httpMocks.createRequest({
           method: 'POST',
           url: '/encrypt',
@@ -122,7 +122,7 @@ describe('Encrypt API', () => {
         controller = require('./encrypt')
       })
 
-      test('should respond with a bad response when the hex is missing', async (done) => {
+      xtest('should respond with a bad response when the hex is missing', async (done) => {
         const request = httpMocks.createRequest({
           method: 'POST',
           url: '/decrypt',
