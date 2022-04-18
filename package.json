@@ -36,7 +36,7 @@
     "pug": "^3.0.2",
     "snyk": "^1.685.0",
     "supertest": "^6.2.2",
-    "supports-color": "^9.2.1",
+    "supports-color": "^9.2.2",
     "winston": "^3.3.3"
   },
   "devDependencies": {
