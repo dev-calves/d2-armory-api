@@ -37,7 +37,7 @@
     "snyk": "^1.685.0",
     "supertest": "^6.2.2",
     "supports-color": "^9.2.1",
-    "winston": "^3.3.3"
+    "winston": "^3.7.2"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
