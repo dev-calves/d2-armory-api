@@ -23,7 +23,7 @@
     "debug": "~4.3.4",
     "dotenv": "^16.0.0",
     "eslint-plugin-jest": "^26.1.1",
-    "express": "~4.17.1",
+    "express": "~4.19.2",
     "express-validator": "^6.11.1",
     "helmet": "^5.0.2",
     "http-errors": "~2.0.0",
