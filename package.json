@@ -35,7 +35,7 @@
     "nock": "^13.1.0",
     "pug": "^3.0.2",
     "snyk": "^1.685.0",
-    "supertest": "^6.2.2",
+    "supertest": "^7.0.0",
     "supports-color": "^9.2.1",
     "winston": "^3.3.3"
   },
